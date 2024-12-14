@@ -2,6 +2,7 @@
 
 
 > YXCollectionView 的主要作用是管理数据的渲染和展示。为了提升性能，它通过节点池机制高效地复用单元节点，这使得它具备虚拟列表的特性。但需要特别指出的是，YXCollectionView 的核心业务不仅限于虚拟列表的管理，它更侧重于布局排列的全面控制。  
+> *<small>简介由 AI 生成</small>*
 > 
 
 ## 开发环境
@@ -33,8 +34,6 @@ this.listComp.register(`cell4`, () => instantiate(<your cell prefab>))
 this.listComp.register(`cell5`, () => instantiate(<your cell prefab>))
 ```
 
----  
-
 绑定数据源，更新节点数据   
 
 ```ts
@@ -62,8 +61,6 @@ this.listComp.cellForItemAt = (indexPath, collectionView) => {
 }
 ```
 
----   
-
 确定布局方案  
 
 ```ts
@@ -72,8 +69,6 @@ layout.spacing = 20
 layout.itemSize = new math.Size(400, 100)
 this.listComp.layout = layout
 ```
-
----  
 
 以上几个步骤不分先后，确保都配置好就好，数据源绑定/布局对象配置好之后，在需要刷新的时候执行 reloadData  
 
@@ -88,5 +83,60 @@ this.listComp.reloadData()
 
 ![img.png](./doc/imgs/editor-panel.png)
 
+## 更多接口  
+
+* 内部 ScrollView 组件  
+```ts
+let isScrolling = this.listComp.scrollView.isScrolling()
+let isAutoScrolling = this.listComp.scrollView.isAutoScrolling()
+this.listComp.scrollView.brake = 0.8
+this.listComp.scrollView.bounceDuration = 0.25
+this.listComp.scrollView.scrollToOffset(new math.Vec2(0, 200))
+// ... 可以直接使用更多 ScrollView 属性或者方法  
+```
+
+* 开启分区  
+```ts
+// 注意: 分区需要自定义 YXLayout 支持  
+this.listComp.numberOfSections = () => 2 // 设置列表分 2 个区排列
+this.listComp.numberOfItems = (section, collectionView) => {
+    if (section == 0) {
+        return 10 // 第 1 个区返回 10 条数据
+    }
+    if (section == 1) {
+        return 20 // 第 2 个区返回 10 条数据
+    }
+    return 0 // 默认情况  
+}
+```
+
+* 节点显示状态回调  
+```ts
+this.listComp.onCellDisplay = (cell, indexPath, collectionView) => {
+    log(`onCellDisplay: ${indexPath}`)
+}
+this.listComp.onCellEndDisplay = (cell, indexPath, collectionView) => {
+    log(`onCellEndDisplay: ${indexPath}`)
+}
+```
+
+* 滚动至指定位置  
+```ts
+let indexPath = new YXIndexPath(0, 2) // 要滚动到的节点索引
+this.listComp.scrollTo(indexPath)
+```
+
+* 预加载相关接口  
+```ts
+this.listComp.preloadNodesLimitPerFrame = 2 // 每帧加载多少个节点
+this.listComp.preloadProgress = (current, total) => {
+    log(`加载进度: ${current}/${total}`)
+}
+```
+
+## 相关链接  
+* [Github](https://github.com/568071718/creator-collection-view)    
+* [Gitee](https://gitee.com/568071718/creator-collection-view)  
+* [旧版文档](https://gitee.com/568071718/creator-collection-view-doc)  
 
 
