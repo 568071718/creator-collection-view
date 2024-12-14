@@ -636,7 +636,7 @@ export interface YXCollectionViewCell extends Component {
 @ccclass('YXCollectionView')
 @disallowMultiple(true)
 @executionOrder(-1)
-@help(`https://gitee.com/568071718/creator-collection-view-doc`)
+@help(`https://github.com/568071718/creator-collection-view`)
 export class YXCollectionView extends Component {
 
     /**

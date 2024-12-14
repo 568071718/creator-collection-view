@@ -1,6 +1,12 @@
 
 
-YXCollectionView 的 layout 属性决定了单元节点在屏幕上的排列方式。通过 YXLayout 作为布局管理器，YXCollectionView 将所有的布局和展示逻辑交给了 YXLayout 来处理。也就是说，YXCollectionView 本身不负责具体的布局实现，而是通过将布局职责委托给 YXLayout 来实现布局的完全解耦。这一设计的最大优势是布局的独立性：你可以针对不同的需求实现不同的布局样式，无论是 TableView、网格布局，还是其他任意排列方式，都可以通过自定义 YXLayout 来实现。每种布局都可以独立封装，不同布局之间相互隔离，互不依赖。使用时只需引入对应的布局规则，极大地提高了灵活性和可重用性。而且，由于布局规则是独立设计的，它们还可以很方便地被导出并分享给其他开发者使用。  
+YXCollectionView 的 layout 属性决定了单元节点在屏幕上的排列方式。  
+
+通过 YXLayout 作为布局管理器，YXCollectionView 将所有的布局和展示逻辑交给了 YXLayout 来处理。也就是说，YXCollectionView 本身不负责具体的布局实现，而是通过将布局职责委托给 YXLayout 来实现布局的完全解耦。  
+
+这一设计的最大优势是布局的独立性：你可以针对不同的需求实现不同的布局样式，无论是 TableView、网格布局，还是其他任意排列方式，都可以通过自定义 YXLayout 来实现。  
+
+每种布局都可以独立封装，不同布局之间相互隔离，互不依赖。使用时只需引入对应的布局规则，极大地提高了灵活性和可重用性。而且，由于布局规则是独立设计的，它们还可以很方便地被导出并分享给其他开发者使用。  
 
 ---  
 
@@ -14,21 +20,21 @@ YXLayoutAttributes 用来描述节点的 UI 相关的信息，在自定义布局
 
   
 需要注意的是，frame 是一个 Rect 类型，同时包含了节点的位置和大小信息，**参考坐标系为左上角原点坐标系**，也就是 origin (0,0) 的位置表示节点紧靠列表左边/上边的位置，举个例子，假如现在需要在列表内以左上角为起点垂直方向排列 3 个大小为 200x100 的节点，不考虑间距边距的情况下，最终的节点位置用 frame 来表示应该为:  
-```
+```ts
 1. (0, 0, 200, 100)
 2. (0, 100, 200, 100)
 3. (0, 200, 200, 100)
 ```
 
 如果需要给节点之间加上一个间距 10，则最终节点位置用 frame 来表示应该为:  
-```
+```ts
 1. (0, 0, 200, 100)
 2. (0, 110, 200, 100)
 3. (0, 220, 200, 100)
 ```
 
 如果还需要给节点加一个左边距 20 的话，则最终节点位置用 frame 来表示应该为:  
-```
+```ts
 1. (20, 0, 200, 100)
 2. (20, 110, 200, 100)
 3. (20, 220, 200, 100)
@@ -36,7 +42,7 @@ YXLayoutAttributes 用来描述节点的 UI 相关的信息，在自定义布局
 
   
 把上面的例子通过代码实现的话就是:   
-```
+```ts
 let spacing = 10 // 节点之间间距
 let section_left = 20 // 左边距
 let itemSize = new math.Size(200, 100) // 节点大小
@@ -63,7 +69,7 @@ attr3.frame = new math.Rect(section_left, attr2.frame.yMax + spacing, itemSize.w
 
 可以参考项目里的 table-layout 的实现，初步了解 YXLayout 的工作流程    
 
-```
+```ts
 import { math, UITransform, warn } from "cc";
 import { YXBinaryLayout, YXCollectionView, YXIndexPath, YXLayoutAttributes } from "./yx-collection-view";
 
@@ -180,7 +186,5 @@ export class YXTableLayout extends YXBinaryLayout {
 ```
 
 [了解更多 YXLayout 接口](../declarations/yx-collection-view.d.ts)  
-
-
 
 
