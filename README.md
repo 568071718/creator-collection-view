@@ -105,7 +105,7 @@ this.listComp.numberOfItems = (section, collectionView) => {
         return 10 // 第 1 个区返回 10 条数据
     }
     if (section == 1) {
-        return 20 // 第 2 个区返回 10 条数据
+        return 20 // 第 2 个区返回 20 条数据
     }
     return 0 // 默认情况  
 }
