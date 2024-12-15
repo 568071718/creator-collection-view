@@ -2,6 +2,7 @@
 
 
 > YXCollectionView 的主要作用是管理数据的渲染和展示。为了提升性能，它通过节点池机制高效地复用单元节点，这使得它具备虚拟列表的特性。但需要特别指出的是，YXCollectionView 的核心业务不仅限于虚拟列表的管理，它更侧重于布局排列的全面控制。  
+> 
 > *<small>简介由 AI 生成</small>*
 > 
 
@@ -20,11 +21,11 @@
 * 多种单元 cell 节点类型  
 * 列表嵌套  
 * 分区概念  
-* [布局解耦](./doc/md/layout.md)  
+* [布局解耦(组件核心)](./doc/md/layout.md)  
 
 ## 使用  
 
-注册 cell，通过 register() 注册列表内可能用到的节点类型，可多次注册    
+* 注册 cell，通过 register() 注册列表内可能用到的节点类型，可多次注册    
 
 ```ts
 this.listComp.register(`cell1`, () => instantiate(<your cell prefab>))
@@ -34,7 +35,7 @@ this.listComp.register(`cell4`, () => instantiate(<your cell prefab>))
 this.listComp.register(`cell5`, () => instantiate(<your cell prefab>))
 ```
 
-绑定数据源，更新节点数据   
+* 绑定数据源，更新节点数据   
 
 ```ts
 // this.testData 是模拟数据  
@@ -61,7 +62,7 @@ this.listComp.cellForItemAt = (indexPath, collectionView) => {
 }
 ```
 
-确定布局方案  
+* 确定布局方案  
 
 ```ts
 let layout = new YXTableLayout()
@@ -137,6 +138,7 @@ this.listComp.preloadProgress = (current, total) => {
 ## 相关链接  
 * [Github](https://github.com/568071718/creator-collection-view)    
 * [Gitee](https://gitee.com/568071718/creator-collection-view)  
+* [查看声明文件](./doc/declarations/yx-collection-view.d.ts)  
 * [旧版文档](https://gitee.com/568071718/creator-collection-view-doc)  
 
 
