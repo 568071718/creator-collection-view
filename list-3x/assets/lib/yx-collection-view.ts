@@ -1026,6 +1026,9 @@ export class YXCollectionView extends Component {
             rect = this.visibleRect
         }
 
+        // 记录最后一次更新的内容范围  
+        this.lastReloadVisibleCellsInRect = rect.clone()
+
         // 根据可见区域，找出对应的布局属性
         let layoutAttributes = this.layout.layoutAttributesForElementsInRect(rect, this)
 
@@ -1094,6 +1097,7 @@ export class YXCollectionView extends Component {
 
         layoutAttributes = []
     }
+    private lastReloadVisibleCellsInRect: math.Rect = null
 
     /**
      * 节点被回收后需要重新使用时，根据当前回收模式恢复节点的状态，保证节点可见
@@ -1133,6 +1137,9 @@ export class YXCollectionView extends Component {
             visibleRect = this.visibleRect
         }
 
+        // 记录最后一次回收节点时的内容范围  
+        this.lastRecycleInvisibleNodesInRect = visibleRect.clone()
+
         const _realFrame = _recycleInvisibleNodes_realFrame
         const _contentSize = this.scrollView.content.getComponent(UITransform).contentSize
 
@@ -1162,6 +1169,7 @@ export class YXCollectionView extends Component {
             }
         })
     }
+    private lastRecycleInvisibleNodesInRect: math.Rect = null
 
     /**
      * 调整节点的位置/变换
@@ -1302,8 +1310,18 @@ export class YXCollectionView extends Component {
             this.reloadVisibleCells()
             return
         }
+
+        if (this.layout.shouldUpdateAttributesForBoundsChange()) {
+            return // 当开启了实时更新节点布局属性时，为了保证实时性，去 onScrolling 里面处理    
+        }
+
         if ((this.frameInterval <= 1) || (this._frameIdx % this.frameInterval == 0)) {
-            this.reloadVisibleCells()
+            // 检查只有显示区域发生变化了才去更新当前可见节点
+            const visibleRect = this.visibleRect
+            let boundsChange = this.lastReloadVisibleCellsInRect == null || this.lastReloadVisibleCellsInRect.equals(visibleRect) == false
+            if (boundsChange) {
+                this.reloadVisibleCells(visibleRect)
+            }
             return
         }
     }
@@ -1320,7 +1338,12 @@ export class YXCollectionView extends Component {
         }
 
         if ((this.recycleInterval >= 1) && (this._frameIdx % this.recycleInterval == 0)) {
-            this.recycleInvisibleNodes()
+            // 检查只有显示区域发生变化了才去回收当前可见节点
+            const visibleRect = this.visibleRect
+            let boundsChange = this.lastRecycleInvisibleNodesInRect == null || this.lastRecycleInvisibleNodesInRect.equals(visibleRect) == false
+            if (boundsChange) {
+                this.recycleInvisibleNodes(visibleRect)
+            }
             return
         }
     }
