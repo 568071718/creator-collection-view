@@ -66,4 +66,15 @@ YXLayout 主要就是负责管理自定义的 YXLayoutAttributes 对象，在 YX
 
 可以参考项目里的 table-layout 的实现，了解 YXLayout 的基本工作流程  
 
+## table-layout  
+
+1. [实现一个类似 TableView 的布局规则 table-layout (了解基本的自定义布局流程)](./table-layout-1.md)  
+1. [使 table-layout 支持不同高度的节点 (了解如何支持不同大小的单元项)](./table-layout-2.md)  
+1. [使 table-layout 支持分区配置 (了解组件的分区概念)](./table-layout-3.md)  
+1. [使 table-layout 支持区头/区尾配置 (简单了解 supplementary 补充视图概念)](./table-layout-4.md)  
+1. [使 table-layout 支持区头/区尾吸附效果 (了解如何实时更新节点布局属性)](./table-layout-5.md)  
+1. [table-layout 性能优化 (了解组件的性能缺陷)](./table-layout-6.md)  
+
+以上就是 table-layout 完整的实现过程，有兴趣的可以了解一下  
+
 

@@ -1,7 +1,4 @@
-import { Component, math, Node, ScrollView, ValueType } from 'cc';
-type _yx_readonly_deep<T> = {
-    readonly [P in keyof T]: T[P] extends Record<string, any> ? _yx_readonly_deep<T[P]> : T[P];
-};
+import { Component, math, Node, ScrollView } from 'cc';
 /**
  * 定义列表的滚动方向
  */
@@ -35,28 +32,29 @@ declare enum _yx_collection_view_list_mode {
 /**
  * 表示索引的对象
  */
-export declare class YXIndexPath extends ValueType {
+export declare class YXIndexPath {
     static ZERO: Readonly<YXIndexPath>;
     /**
      * 区索引
      */
-    section: number;
+    get section(): number;
     /**
      * 单元格在区内的位置
      */
-    item: number;
-    set row(value: number);
+    get item(): number;
+    /**
+     * item 别名
+     */
     get row(): number;
     constructor(section: number, item: number);
     clone(): YXIndexPath;
     equals(other: YXIndexPath): boolean;
-    set(other: YXIndexPath): void;
     toString(): string;
 }
 /**
  * 表示边距的对象
  */
-export declare class YXEdgeInsets extends ValueType {
+export declare class YXEdgeInsets {
     static ZERO: Readonly<YXEdgeInsets>;
     top: number;
     left: number;
@@ -69,33 +67,39 @@ export declare class YXEdgeInsets extends ValueType {
     toString(): string;
 }
 /**
- * 私有组件
- * cell 节点添加到 YXCollectionView 上时，自动挂载此组件，用来记录一些实时参数
- */
-declare class _cell_ extends Component {
-    /**
-     * 此节点是通过哪个标识符创建的
-     */
-    identifier: string;
-    /**
-     * 此节点目前绑定的布局属性
-     */
-    attributes: YXLayoutAttributes;
-}
-/**
  * 节点的布局属性
  */
 export declare class YXLayoutAttributes {
     /**
+     * 创建一个 cell 布局属性实例
+     */
+    static layoutAttributesForCell(indexPath: YXIndexPath): YXLayoutAttributes;
+    /**
+     * 创建一个 supplementary 布局属性实例
+     * @param kinds 自定义类别标识，更多说明查看 supplementaryKinds
+     */
+    static layoutAttributesForSupplementary(indexPath: YXIndexPath, kinds: string): YXLayoutAttributes;
+    /**
+     * 构造方法，外部禁止直接访问，需要通过上面的静态方法创建对象
+     */
+    protected constructor();
+    /**
      * 节点索引
      */
     get indexPath(): YXIndexPath;
-    constructor(indexPath: YXIndexPath);
+    /**
+     * 节点种类
+     */
+    get elementCategory(): "Cell" | "Supplementary";
+    /**
+     * Supplementary 种类，本身无实际意义，具体作用由自定义布局规则决定
+     */
+    get supplementaryKinds(): string;
     /**
      * 节点在滚动视图中的位置和大小属性
      * origin 属性表示节点在父视图坐标系中的左上角的位置，size 属性表示节点的宽度和高度
      */
-    frame: math.Rect;
+    get frame(): math.Rect;
     /**
      * 节点层级
      * 越小会越早的添加到滚动视图上
@@ -131,20 +135,21 @@ export declare abstract class YXLayout {
     /**
      * @required
      * 整个滚动区域大小
-     * 需要在 @prepare 内初始化
+     * 需要在 prepare 内初始化
      */
     contentSize: math.Size;
     /**
      * @required
      * 所有元素的布局属性
-     * 需要在 @prepare 内初始化
+     * 需要在 prepare 内初始化
+     * @todo 这个不应该限制为数组结构，准确来说是不应该限制开发者必须使用数组来保存所有布局属性，目前为了实现预加载模式暂时是必须要求数组结构，后续有好的方案的话应该考虑优化
      */
     attributes: YXLayoutAttributes[];
     /**
      * @required
      * 子类重写实现布局方案
-     * 注意: 必须初始化滚动区域大小并赋值给 @contentSize 属性
-     * 注意: 必须初始化所有的元素布局属性，并保存到 @attributes 数组
+     * 注意: 必须初始化滚动区域大小并赋值给 contentSize 属性
+     * 注意: 必须初始化所有的元素布局属性，并保存到 attributes 数组
      * 可选: 根据 collectionView 的 scrollDirection 支持不同的滚动方向
      */
     abstract prepare(collectionView: YXCollectionView): void;
@@ -152,6 +157,12 @@ export declare abstract class YXLayout {
      * @optional
      * 列表在首次更新数据后会执行这个方法
      * 在这个方法里设置滚动视图的初始偏移量
+     *
+     * @example
+     * // 比如一个垂直列表希望初始化时从最顶部开始展示数据，那么可以在这个方法里通过 scrollToTop 实现
+     * initOffset(collectionView: YXCollectionView): void {
+     *      collectionView.scrollView.scrollToTop()
+     * }
      */
     initOffset(collectionView: YXCollectionView): void;
     /**
@@ -178,41 +189,35 @@ export declare abstract class YXLayout {
     /**
      * @optional
      * 列表每次滚动结束后会调用此方法
-     * @param collectionView
      */
     onScrollEnded(collectionView: YXCollectionView): void;
     /**
      * @optional
-     * 返回区域内可见的节点属性，并实时的调整这些节点变换效果 (如果在这个方法里调整了节点变换属性，需要重写 shouldUpdateAttributesForBoundsChange 以支持实时变换)
-     * 根据实际的布局情况，计算出当前屏幕内需要显示的布局属性
-     * 这个方法会直接影响到列表的性能，如果在自定义的时候对性能要求不高(比如明确知道数据量不多的情况下)，可以忽略此方法 (默认会检查所有的布局属性并返回所有的处于可见范围内的单元格布局属性)
+     * 当滚动视图的可见范围变化后执行，这个方法会在列表滚动过程中频繁的执行
+     * 在这个方法里可以调整节点属性以实现交互性的节点变换效果，(如果在这个方法里调整了节点变换属性，需要重写 shouldUpdateAttributesForBoundsChange 以支持实时变换)
+     *
      * @param rect 当前滚动视图的可见区域
+     *
+     * @returns
+     * 关于这个方法的返回值，最优的情况应该是根据实际的布局情况计算出当前显示区域内需要显示的所有布局属性
+     * 列表在更新可见节点时会遍历这个方法返回的数组并依次检查节点是否需要添加到列表内，默认这个方法是直接返回所有的布局属性，也就是在更新可见节点时的时间复杂度默认为 O(attributes.length)，除非有更优的算法，否则建议直接返回所有的布局属性
      */
     layoutAttributesForElementsInRect(rect: math.Rect, collectionView: YXCollectionView): YXLayoutAttributes[];
-    /**
-     * @optional
-     * 通过索引查找布局属性，默认 Array.find()
-     * @param indexPath
-     * @param collectionView
-     */
     layoutAttributesForItemAtIndexPath(indexPath: YXIndexPath, collectionView: YXCollectionView): YXLayoutAttributes;
+    layoutAttributesForSupplementaryAtIndexPath(indexPath: YXIndexPath, collectionView: YXCollectionView, kinds: string): YXLayoutAttributes;
     /**
      * @optional
-     * YXCollectionView 在调用 @scrollTo 方法时会触发这个方法，如果实现了这个方法，最终的滚动停止位置以这个方法返回的为准
-     * @param indexPath
-     * @returns 滚动视图偏移位置
+     * 列表组件在调用 scrollTo 方法时会触发这个方法，如果实现了这个方法，最终的滚动停止位置以这个方法返回的为准
      */
     scrollTo(indexPath: YXIndexPath, collectionView: YXCollectionView): math.Vec2;
     /**
      * @optional
      * @see YXLayoutAttributes.zIndex
-     * @returns
      */
     shouldUpdateAttributesZIndex(): boolean;
     /**
      * @optional
      * @see YXLayoutAttributes.opacity
-     * @returns
      */
     shouldUpdateAttributesOpacity(): boolean;
     /**
@@ -221,21 +226,11 @@ export declare abstract class YXLayout {
      * @returns 返回 true 会忽略 YXCollectionView 的 frameInterval 设置，强制在滚动过程中实时更新节点
      */
     shouldUpdateAttributesForBoundsChange(): boolean;
-}
-/**
- * 把二分查找的规则抽出来封装一下，继承这个类的布局，默认通过二分查找实现查找业务
- * 这种查找规则对数据量很大的有序列表来说相对高效，具体是否使用还是要根据实际排列需求决定
- */
-export declare abstract class YXBinaryLayout extends YXLayout {
     /**
-     * @bug 如果节点大小差距很大，可能会导致计算屏幕内节点时不准确，出现节点不被正确添加到滚动视图上的问题
-     * @fix 可以通过此属性，追加屏幕显示的节点数量
-     * 设置这个值会在检查是否可见的节点时，尝试检查更多的可能处于屏幕外的节点，具体设置多少要根据实际情况调试，一般如果都是正常大小的节点，不需要考虑这个配置
-     * 设置负值会检查所有的节点
+     * @optional
+     * 列表组件销毁时执行
      */
-    extraVisibleCount: number;
-    layoutAttributesForElementsInRect(rect: math.Rect, collectionView: YXCollectionView): YXLayoutAttributes[];
-    layoutAttributesForItemAtIndexPath(indexPath: YXIndexPath, collectionView: YXCollectionView): YXLayoutAttributes;
+    onDestroy(): void;
 }
 /**
  * @see NodePool.poolHandlerComp
@@ -269,7 +264,7 @@ export declare class YXCollectionView extends Component {
     /**
      * 列表滚动方向，默认垂直方向滚动
      * 自定义 YXLayout 应该尽量根据这个配置来实现不同方向的布局业务
-     * 注意: 如果使用的 YXLayout 未支持对应的滚动方向，则此配置不会生效
+     * 备注: 如果使用的 YXLayout 未支持对应的滚动方向，则此配置不会生效，严格来说这个滚动方向本就应该是由 YXLayout 决定的，定义在这里是为了编辑器配置方便
      */
     scrollDirection: YXCollectionView.ScrollDirection;
     /**
@@ -296,18 +291,26 @@ export declare class YXCollectionView extends Component {
     recycleInterval: number;
     /**
      * 注册 cell
-     * 可多次注册不同种类的 cell，只要确保 @identifier 的唯一性就好
-     * @param identifier cell 标识符，通过 @dequeueReusableCell 获取重用 cell 时，会根据这个值匹配
+     * 可多次注册不同种类的 cell，只要确保 identifier 的唯一性就好
+     * @param identifier cell 标识符，通过 dequeueReusableCell 获取重用 cell 时，会根据这个值匹配
      * @param maker 生成节点，当重用池里没有可用的节点时，会通过这个回调获取节点，需要在这个回调里面生成节点
-     * @param poolComp (可选) 节点自定义组件，可以通过这个组件跟 @NodePool 的重用业务关联起来
+     * @param poolComp (可选) 节点自定义组件，可以通过这个组件跟 NodePool 的重用业务关联起来
      */
-    register(identifier: string, maker: () => Node, poolComp?: (new (...args: any[]) => YXCollectionViewCell) | string | null): void;
+    registerCell(identifier: string, maker: () => Node, poolComp?: (new (...args: any[]) => YXCollectionViewCell) | string | null): void;
+    /**
+     * 注册 supplementary 追加视图，用法跟 registerCell 一样
+     */
+    registerSupplementary(identifier: string, maker: () => Node, poolComp?: (new (...args: any[]) => YXCollectionViewCell) | string | null): void;
     /**
      * 通过标识符从重用池里取出一个可用的 cell 节点
      * @param identifier 注册时候的标识符
-     * @returns
      */
     dequeueReusableCell(identifier: string): Node;
+    /**
+     * 通过标识符从重用池里取出一个可用的 supplementary 节点
+     * @param identifier 注册时候的标识符
+     */
+    dequeueReusableSupplementary(identifier: string): Node;
     /**
      * 内容要分几个区展示，默认 1
      * 没有分区展示的需求可以不管这个配置
@@ -335,18 +338,29 @@ export declare class YXCollectionView extends Component {
      */
     cellForItemAt: (indexPath: YXIndexPath, collectionView: YXCollectionView) => Node;
     /**
-     * 当 cell 进入当前可见范围后执行
+     * 用法跟 cellForItemAt 差不多，此方法内需要通过 dequeueReusableSupplementary 获取 Node 节点
+     * @param kinds 关于这个字段的具体含义应该根据使用的自定义 layout 决定
+     */
+    supplementaryForItemAt: (indexPath: YXIndexPath, collectionView: YXCollectionView, kinds: string) => Node;
+    /**
+     * cell 节点可见状态回调
      * 如果同类型的节点大小可能不一样，可以在这里调整子节点的位置
      */
-    onCellDisplay: (cell: Node, indexPath: YXIndexPath, collectionView: YXCollectionView) => void;
+    onCellDisplay: (node: Node, indexPath: YXIndexPath, collectionView: YXCollectionView) => void;
+    onCellEndDisplay: (node: Node, indexPath: YXIndexPath, collectionView: YXCollectionView) => void;
     /**
-     * 当 cell 移出当前可见范围后执行
+     * supplementary 节点可见状态回调
      */
-    onCellEndDisplay: (cell: Node, indexPath: YXIndexPath, collectionView: YXCollectionView) => void;
+    onSupplementaryDisplay: (node: Node, indexPath: YXIndexPath, collectionView: YXCollectionView, kinds: string) => void;
+    onSupplementaryEndDisplay: (node: Node, indexPath: YXIndexPath, collectionView: YXCollectionView, kinds: string) => void;
     /**
-     * 点击到节点后执行这个方法
+     * 点击到 cell 节点后执行
      */
-    onTouchItemAt: (indexPath: YXIndexPath, collectionView: YXCollectionView) => void;
+    onTouchCellAt: (indexPath: YXIndexPath, collectionView: YXCollectionView) => void;
+    /**
+     * 点击到 supplementary 节点后执行
+     */
+    onTouchSupplementaryAt: (indexPath: YXIndexPath, collectionView: YXCollectionView, kinds: string) => void;
     /**
      * 布局规则
      */
@@ -354,29 +368,40 @@ export declare class YXCollectionView extends Component {
     /**
      * 获取列表当前的可见范围
      */
-    get visibleRect(): math.Rect;
+    getVisibleRect(): math.Rect;
     /**
-     * 获取当前正在显示的所有节点/组件
+     * 通过索引获取指定的可见的 cell 节点
      */
-    get visibleNodes(): Node[];
-    get visibleCells(): YXCollectionView.Cell[];
+    getVisibleCellNode(indexPath: YXIndexPath): Node;
     /**
-     * 获取当前正在显示的某个节点/组件
-     * @param indexPath
+     * 通过索引获取指定的可见的 supplementary 节点
      */
-    getVisibleNode(indexPath: YXIndexPath): Node | null;
-    getVisibleCell(indexPath: YXIndexPath): YXCollectionView.Cell | null;
+    getVisibleSupplementaryNode(indexPath: YXIndexPath, kinds: string): Node;
     /**
-     * 获取指定节点的私有 cell 组件
+     * 获取所有正在显示的 cell 节点
      */
-    getCellComp(node: Node): YXCollectionView.Cell | null;
+    getVisibleCellNodes(): Node[];
+    /**
+     * 获取所有正在显示的 supplementary 节点
+     * @param kinds 可选按种类筛选
+     */
+    getVisibleSupplementaryNodes(kinds?: string): Node[];
+    /**
+     * 获取指定节点绑定的布局属性对象
+     */
+    getElementAttributes(node: Node): YXLayoutAttributes;
     /**
      * 刷新列表数据
      */
     reloadData(): void;
     /**
+     * 刷新当前可见节点
+     * @param force true: 立即刷新;  false: 根据设置的刷新帧间隔在合适的时候刷新
+     */
+    markForUpdateVisibleData(force?: boolean): void;
+    /**
      * 滚动到指定节点的位置
-     * @returns
+     * @todo 支持偏移方位，目前固定是按顶部的位置的，有特殊需求的建议直接通过 .scrollView.scrollToOffset() 实现
      */
     scrollTo(indexPath: YXIndexPath, timeInSecond?: number, attenuated?: boolean): void;
     /**
@@ -385,11 +410,6 @@ export declare class YXCollectionView extends Component {
     protected onLoad(): void;
     protected onDestroy(): void;
     protected update(dt: number): void;
-    /**
-     * 刷新当前可见节点
-     * @param force true: 立即刷新  false: 下帧刷新
-     */
-    markForUpdateVisibleData(force?: boolean): void;
 }
 export declare namespace YXCollectionView {
     /**
@@ -397,6 +417,25 @@ export declare namespace YXCollectionView {
      */
     type ScrollDirection = _yx_collection_view_scroll_direction;
     type Mode = _yx_collection_view_list_mode;
-    type Cell = _yx_readonly_deep<_cell_>;
 }
-export { };
+/**
+ * *****************************************************************************************
+ * *****************************************************************************************
+ * 把二分查找的规则抽出来封装一下，继承这个类的布局，默认通过二分查找实现查找业务
+ * 这种查找规则对数据量很大的有序列表来说相对高效，具体是否使用还是要根据实际排列需求决定
+ * *****************************************************************************************
+ * *****************************************************************************************
+ *
+ * @deprecated 1.4.0 版本开始，在自定义布局规则的时候暂时不建议继承这个规则了，如何优化查找算法应该全靠开发者根据实际需求自行实现，目前保留这个是为了 flow-layout 使用，后续有更优方案的话可能会删除这部分代码
+ */
+export declare abstract class YXBinaryLayout extends YXLayout {
+    /**
+     * @bug 如果节点大小差距很大，可能会导致计算屏幕内节点时不准确，出现节点不被正确添加到滚动视图上的问题
+     * @fix 可以通过此属性，追加屏幕显示的节点数量
+     * 设置这个值会在检查是否可见的节点时，尝试检查更多的可能处于屏幕外的节点，具体设置多少要根据实际情况调试，一般如果都是正常大小的节点，不需要考虑这个配置
+     * 设置负值会检查所有的节点
+     */
+    extraVisibleCount: number;
+    layoutAttributesForElementsInRect(rect: math.Rect, collectionView: YXCollectionView): YXLayoutAttributes[];
+}
+export {};
