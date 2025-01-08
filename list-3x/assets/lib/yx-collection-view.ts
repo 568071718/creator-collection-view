@@ -1,13 +1,9 @@
-import { _decorator, Component, Enum, Event, EventMouse, EventTouch, instantiate, log, Mask, math, Node, NodeEventType, NodePool, Prefab, ScrollView, UIOpacity, UITransform, ValueType } from 'cc';
+import { _decorator, Component, Enum, Event, EventMouse, EventTouch, instantiate, Mask, math, Node, NodeEventType, NodePool, Prefab, ScrollView, UIOpacity, UITransform } from 'cc';
 const { ccclass, property, executionOrder, disallowMultiple, help } = _decorator;
 
 const _vec3Out = new math.Vec3()
 const _scroll_view_visible_rect = new math.Rect()
 const _recycleInvisibleNodes_realFrame = new math.Rect()
-
-type _yx_readonly_deep<T> = {
-    readonly [P in keyof T]: T[P] extends Record<string, any> ? _yx_readonly_deep<T[P]> : T[P];
-};
 
 /**
  * 定义列表的滚动方向  
@@ -46,16 +42,14 @@ enum _yx_collection_view_list_mode {
 Enum(_yx_collection_view_list_mode)
 
 /**
- * 定义通过编辑器注册节点时的结构体
+ * 定义通过编辑器注册节点时的数据结构
  */
-@ccclass(`_yx_editor_register_cell_info`)
-class _yx_editor_register_cell_info {
+@ccclass(`_yx_editor_register_element_info`)
+class _yx_editor_register_element_info {
     @property({ type: Prefab, tooltip: `cell 节点预制体，必须配置` })
     prefab: Prefab = null
-
     @property({ tooltip: `节点重用标识符，必须配置` })
     identifier: string = ``
-
     @property({ tooltip: `节点挂载的自定义组件\n如果需要监听 NodePool 的重用/回收事件，确保你的自定义组件已经实现了 YXCollectionViewCell 接口并配置此属性为你的自定义组件名\n如果不需要，可以忽略此配置` })
     comp: string = ``
 }
@@ -63,78 +57,50 @@ class _yx_editor_register_cell_info {
 /**
  * 表示索引的对象
  */
-@ccclass(`YXIndexPath`)
-export class YXIndexPath extends ValueType {
+export class YXIndexPath {
+    private _item: number = 0
+    private _section: number = 0
     public static ZERO: Readonly<YXIndexPath> = new YXIndexPath(0, 0)
     /**
      * 区索引
      */
-    section: number = 0
+    get section(): number { return this._section }
+
     /**
      * 单元格在区内的位置
      */
-    item: number = 0
-    set row(value: number) { this.item = value }
+    get item(): number { return this._item }
+    /**
+     * item 别名  
+     */
     get row(): number { return this.item }
-    constructor(section: number, item: number) {
-        super()
-        this.section = section
-        this.item = item
-    }
-    clone(): YXIndexPath {
-        return new YXIndexPath(this.section, this.item)
-    }
-    equals(other: YXIndexPath): boolean {
-        return (this.section == other.section && this.item == other.item)
-    }
-    set(other: YXIndexPath): void {
-        this.section = other.section
-        this.item = other.item
-    }
-    toString(): string {
-        return `${this.section} - ${this.item}`
-    }
+    constructor(section: number, item: number) { this._section = section; this._item = item; }
+    clone(): YXIndexPath { return new YXIndexPath(this.section, this.item) }
+    equals(other: YXIndexPath): boolean { return (this.section == other.section && this.item == other.item) }
+    toString(): string { return `${this.section} - ${this.item}` }
 }
 
 /**
  * 表示边距的对象
  */
-@ccclass(`YXEdgeInsets`)
-export class YXEdgeInsets extends ValueType {
+export class YXEdgeInsets {
     public static ZERO: Readonly<YXEdgeInsets> = new YXEdgeInsets(0, 0, 0, 0)
-    top: number
-    left: number
-    bottom: number
-    right: number
-    constructor(top: number, left: number, bottom: number, right: number) {
-        super()
-        this.top = top
-        this.left = left
-        this.bottom = bottom
-        this.right = right
-    }
-    clone(): YXEdgeInsets {
-        return new YXEdgeInsets(this.top, this.left, this.bottom, this.right)
-    }
-    equals(other: YXEdgeInsets): boolean {
-        return (this.top == other.top && this.left == other.left && this.bottom == other.bottom && this.right == other.right)
-    }
-    set(other: YXEdgeInsets): void {
-        this.top = other.top
-        this.left = other.left
-        this.bottom = other.bottom
-        this.right = other.right
-    }
-    toString(): string {
-        return `[ ${this.top}, ${this.left}, ${this.bottom}, ${this.right} ]`
-    }
+    top: number;
+    left: number;
+    bottom: number;
+    right: number;
+    constructor(top: number, left: number, bottom: number, right: number) { this.top = top; this.left = left; this.bottom = bottom; this.right = right; }
+    clone(): YXEdgeInsets { return new YXEdgeInsets(this.top, this.left, this.bottom, this.right) }
+    equals(other: YXEdgeInsets): boolean { return (this.top == other.top && this.left == other.left && this.bottom == other.bottom && this.right == other.right) }
+    set(other: YXEdgeInsets): void { this.top = other.top; this.left = other.left; this.bottom = other.bottom; this.right = other.right; }
+    toString(): string { return `[ ${this.top}, ${this.left}, ${this.bottom}, ${this.right} ]` }
 }
 
 /**
  * 私有组件
- * cell 节点添加到 YXCollectionView 上时，自动挂载此组件，用来记录一些实时参数
+ * 节点添加到 YXCollectionView 上时，自动挂载此组件，用来记录一些实时参数
  */
-class _cell_ extends Component {
+class _yx_node_element_comp extends Component {
     /**
      * 此节点是通过哪个标识符创建的
      */
@@ -258,12 +224,6 @@ class _scroll_view extends ScrollView {
             super._onTouchMoved(event, captureListeners)
         }
     }
-    protected _onTouchCancelled(event: EventTouch, captureListeners?: Node[]): void {
-        super._onTouchCancelled(event, captureListeners)
-    }
-    protected _onTouchEnded(event: EventTouch, captureListeners?: Node[]): void {
-        super._onTouchEnded(event, captureListeners)
-    }
 
     protected _hasNestedViewGroup(event: Event, captureListeners?: Node[]): boolean {
         // 直接把所有的列表都标记为可滑动，具体滑动哪一个，去 _onTouchMoved 判断
@@ -340,20 +300,58 @@ class _scroll_view extends ScrollView {
  * 节点的布局属性
  */
 export class YXLayoutAttributes {
+
+    /**
+     * 创建一个 cell 布局属性实例  
+     */
+    static layoutAttributesForCell(indexPath: YXIndexPath): YXLayoutAttributes {
+        let result = new YXLayoutAttributes()
+        result._indexPath = indexPath
+        result._elementCategory = 'Cell'
+        return result
+    }
+
+    /**
+     * 创建一个 supplementary 布局属性实例  
+     * @param kinds 自定义类别标识，更多说明查看 supplementaryKinds    
+     */
+    static layoutAttributesForSupplementary(indexPath: YXIndexPath, kinds: string): YXLayoutAttributes {
+        let result = new YXLayoutAttributes()
+        result._indexPath = indexPath
+        result._elementCategory = 'Supplementary'
+        result._supplementaryKinds = kinds
+        return result
+    }
+
+    /**
+     * 构造方法，外部禁止直接访问，需要通过上面的静态方法创建对象  
+     */
+    protected constructor() { }
+
     /**
      * 节点索引
      */
     get indexPath(): YXIndexPath { return this._indexPath }
     private _indexPath: YXIndexPath = null
-    constructor(indexPath: YXIndexPath) {
-        this._indexPath = indexPath
-    }
+
+    /**
+     * 节点种类
+     */
+    get elementCategory() { return this._elementCategory }
+    private _elementCategory: 'Cell' | 'Supplementary' = 'Cell'
+
+    /**
+     * Supplementary 种类，本身无实际意义，具体作用由自定义布局规则决定  
+     */
+    get supplementaryKinds() { return this._supplementaryKinds }
+    private _supplementaryKinds: string = ''
 
     /**
      * 节点在滚动视图中的位置和大小属性
      * origin 属性表示节点在父视图坐标系中的左上角的位置，size 属性表示节点的宽度和高度
      */
-    frame: math.Rect = null
+    get frame(): math.Rect { return this._frame }
+    private _frame: math.Rect = new math.Rect()
 
     /**
      * 节点层级
@@ -375,7 +373,7 @@ export class YXLayoutAttributes {
     scale: math.Vec3 = null
 
     /**
-     * 节点变换 - 平移
+     * 节点变换 - 平移  
      */
     offset: math.Vec3 = null
 
@@ -395,31 +393,38 @@ export abstract class YXLayout {
 
     /**
      * @required
-     * 整个滚动区域大小
-     * 需要在 @prepare 内初始化
+     * 整个滚动区域大小  
+     * 需要在 prepare 内初始化
      */
     contentSize: math.Size = math.Size.ZERO
 
     /**
      * @required
-     * 所有元素的布局属性
-     * 需要在 @prepare 内初始化
+     * 所有元素的布局属性  
+     * 需要在 prepare 内初始化  
+     * @todo 这个不应该限制为数组结构，准确来说是不应该限制开发者必须使用数组来保存所有布局属性，目前为了实现预加载模式暂时是必须要求数组结构，后续有好的方案的话应该考虑优化  
      */
     attributes: YXLayoutAttributes[] = []
 
     /**
      * @required
-     * 子类重写实现布局方案
-     * 注意: 必须初始化滚动区域大小并赋值给 @contentSize 属性
-     * 注意: 必须初始化所有的元素布局属性，并保存到 @attributes 数组
+     * 子类重写实现布局方案  
+     * 注意: 必须初始化滚动区域大小并赋值给 contentSize 属性  
+     * 注意: 必须初始化所有的元素布局属性，并保存到 attributes 数组  
      * 可选: 根据 collectionView 的 scrollDirection 支持不同的滚动方向
      */
     abstract prepare(collectionView: YXCollectionView): void
 
     /**
      * @optional
-     * 列表在首次更新数据后会执行这个方法
-     * 在这个方法里设置滚动视图的初始偏移量
+     * 列表在首次更新数据后会执行这个方法  
+     * 在这个方法里设置滚动视图的初始偏移量  
+     * 
+     * @example  
+     * // 比如一个垂直列表希望初始化时从最顶部开始展示数据，那么可以在这个方法里通过 scrollToTop 实现  
+     * initOffset(collectionView: YXCollectionView): void {
+     *      collectionView.scrollView.scrollToTop()
+     * }
      */
     initOffset(collectionView: YXCollectionView) { }
 
@@ -443,58 +448,46 @@ export abstract class YXLayout {
 
     /**
      * @optional
-     * 列表每次滚动结束后会调用此方法
-     * @param collectionView 
+     * 列表每次滚动结束后会调用此方法  
      */
     onScrollEnded(collectionView: YXCollectionView) { }
 
     /**
-     * @optional
-     * 返回区域内可见的节点属性，并实时的调整这些节点变换效果 (如果在这个方法里调整了节点变换属性，需要重写 shouldUpdateAttributesForBoundsChange 以支持实时变换)
-     * 根据实际的布局情况，计算出当前屏幕内需要显示的布局属性
-     * 这个方法会直接影响到列表的性能，如果在自定义的时候对性能要求不高(比如明确知道数据量不多的情况下)，可以忽略此方法 (默认会检查所有的布局属性并返回所有的处于可见范围内的单元格布局属性)
-     * @param rect 当前滚动视图的可见区域
+     * @optional  
+     * 当滚动视图的可见范围变化后执行，这个方法会在列表滚动过程中频繁的执行  
+     * 在这个方法里可以调整节点属性以实现交互性的节点变换效果，(如果在这个方法里调整了节点变换属性，需要重写 shouldUpdateAttributesForBoundsChange 以支持实时变换)  
+     * 
+     * @param rect 当前滚动视图的可见区域  
+     * 
+     * @returns
+     * 关于这个方法的返回值，最优的情况应该是根据实际的布局情况计算出当前显示区域内需要显示的所有布局属性  
+     * 列表在更新可见节点时会遍历这个方法返回的数组并依次检查节点是否需要添加到列表内，默认这个方法是直接返回所有的布局属性，也就是在更新可见节点时的时间复杂度默认为 O(attributes.length)，除非有更优的算法，否则建议直接返回所有的布局属性  
      */
     layoutAttributesForElementsInRect(rect: math.Rect, collectionView: YXCollectionView): YXLayoutAttributes[] {
-        let result = []
-        for (let index = 0; index < this.attributes.length; index++) {
-            let attr = this.attributes[index]
-            if (rect.intersects(attr.frame) == true) {
-                result.push(attr)
-            }
-        }
-        return result
+        return this.attributes
     }
-
-    /**
-     * @optional
-     * 通过索引查找布局属性，默认 Array.find()
-     * @param indexPath 
-     * @param collectionView 
-     */
     layoutAttributesForItemAtIndexPath(indexPath: YXIndexPath, collectionView: YXCollectionView): YXLayoutAttributes {
-        return this.attributes.find((a) => a.indexPath.equals(indexPath))
+        return this.attributes.find((a) => a.indexPath.equals(indexPath) && a.elementCategory === 'Cell')
+    }
+    layoutAttributesForSupplementaryAtIndexPath(indexPath: YXIndexPath, collectionView: YXCollectionView, kinds: string): YXLayoutAttributes {
+        return this.attributes.find((a) => a.indexPath.equals(indexPath) && a.elementCategory === 'Supplementary' && a.supplementaryKinds === kinds)
     }
 
     /**
      * @optional
-     * YXCollectionView 在调用 @scrollTo 方法时会触发这个方法，如果实现了这个方法，最终的滚动停止位置以这个方法返回的为准
-     * @param indexPath 
-     * @returns 滚动视图偏移位置
+     * 列表组件在调用 scrollTo 方法时会触发这个方法，如果实现了这个方法，最终的滚动停止位置以这个方法返回的为准  
      */
     scrollTo(indexPath: YXIndexPath, collectionView: YXCollectionView): math.Vec2 { return null }
 
     /**
      * @optional
-     * @see YXLayoutAttributes.zIndex
-     * @returns 
+     * @see YXLayoutAttributes.zIndex  
      */
     shouldUpdateAttributesZIndex(): boolean { return false }
 
     /**
      * @optional
-     * @see YXLayoutAttributes.opacity
-     * @returns 
+     * @see YXLayoutAttributes.opacity  
      */
     shouldUpdateAttributesOpacity(): boolean { return false }
 
@@ -504,121 +497,12 @@ export abstract class YXLayout {
      * @returns 返回 true 会忽略 YXCollectionView 的 frameInterval 设置，强制在滚动过程中实时更新节点
      */
     shouldUpdateAttributesForBoundsChange(): boolean { return false }
-}
-
-/**
- * 把二分查找的规则抽出来封装一下，继承这个类的布局，默认通过二分查找实现查找业务  
- * 这种查找规则对数据量很大的有序列表来说相对高效，具体是否使用还是要根据实际排列需求决定  
- */
-export abstract class YXBinaryLayout extends YXLayout {
 
     /**
-     * @bug 如果节点大小差距很大，可能会导致计算屏幕内节点时不准确，出现节点不被正确添加到滚动视图上的问题
-     * @fix 可以通过此属性，追加屏幕显示的节点数量
-     * 设置这个值会在检查是否可见的节点时，尝试检查更多的可能处于屏幕外的节点，具体设置多少要根据实际情况调试，一般如果都是正常大小的节点，不需要考虑这个配置
-     * 设置负值会检查所有的节点
+     * @optional  
+     * 列表组件销毁时执行  
      */
-    extraVisibleCount: number = 0
-
-    layoutAttributesForElementsInRect(rect: math.Rect, collectionView: YXCollectionView): YXLayoutAttributes[] {
-        if (this.extraVisibleCount < 0) {
-            return super.layoutAttributesForElementsInRect(rect, collectionView)
-        }
-
-        // 二分先查出大概位置
-        let midIdx = -1
-        let left = 0
-        let right = this.attributes.length - 1
-
-        while (left <= right && right >= 0) {
-            let mid = left + (right - left) / 2
-            mid = Math.floor(mid)
-            let attr = this.attributes[mid]
-            if (rect.intersects(attr.frame)) {
-                midIdx = mid
-                break
-            }
-            if (rect.yMax < attr.frame.yMin || rect.xMax < attr.frame.xMin) {
-                right = mid - 1
-            } else {
-                left = mid + 1
-            }
-        }
-        if (midIdx < 0) {
-            return super.layoutAttributesForElementsInRect(rect, collectionView)
-        }
-
-        let result = []
-        result.push(this.attributes[midIdx])
-
-        // 往前检查
-        let startIdx = midIdx
-        while (startIdx > 0) {
-            let idx = startIdx - 1
-            let attr = this.attributes[idx]
-            if (rect.intersects(attr.frame) == false) {
-                break
-            }
-            result.push(attr)
-            startIdx = idx
-        }
-
-        // 追加检查
-        let extra_left = this.extraVisibleCount
-        while (extra_left > 0) {
-            let idx = startIdx - 1
-            if (idx < 0) { break }
-            let attr = this.attributes[idx]
-            if (rect.intersects(attr.frame)) { result.push(attr) }
-            startIdx = idx
-            extra_left--
-        }
-
-        // 往后检查
-        let endIdx = midIdx
-        while (endIdx < this.attributes.length - 1) {
-            let idx = endIdx + 1
-            let attr = this.attributes[idx]
-            if (rect.intersects(attr.frame) == false) {
-                break
-            }
-            result.push(attr)
-            endIdx = idx
-        }
-
-        // 追加检查
-        let extra_right = this.extraVisibleCount
-        while (extra_right > 0) {
-            let idx = endIdx + 1
-            if (idx >= this.attributes.length) { break }
-            let attr = this.attributes[idx]
-            if (rect.intersects(attr.frame)) { result.push(attr) }
-            endIdx = idx
-            extra_right--
-        }
-
-        return result
-    }
-
-    layoutAttributesForItemAtIndexPath(indexPath: YXIndexPath, collectionView: YXCollectionView): YXLayoutAttributes {
-        let left = 0
-        let right = this.attributes.length - 1
-
-        while (left <= right && right >= 0) {
-            let mid = left + (right - left) / 2
-            mid = Math.floor(mid)
-            let attr = this.attributes[mid]
-            if (attr.indexPath.equals(indexPath)) {
-                return attr
-            }
-            if (attr.indexPath.section < indexPath.section || (attr.indexPath.section == indexPath.section && attr.indexPath.item < indexPath.item)) {
-                left = mid + 1
-            } else {
-                right = mid - 1
-            }
-        }
-        return super.layoutAttributesForItemAtIndexPath(indexPath, collectionView)
-    }
+    onDestroy() { }
 }
 
 /**
@@ -698,7 +582,7 @@ export class YXCollectionView extends Component {
     /**
      * 列表滚动方向，默认垂直方向滚动  
      * 自定义 YXLayout 应该尽量根据这个配置来实现不同方向的布局业务  
-     * 注意: 如果使用的 YXLayout 未支持对应的滚动方向，则此配置不会生效
+     * 备注: 如果使用的 YXLayout 未支持对应的滚动方向，则此配置不会生效，严格来说这个滚动方向本就应该是由 YXLayout 决定的，定义在这里是为了编辑器配置方便  
      */
     @property({ type: _yx_collection_view_scroll_direction, tooltip: `列表滚动方向` })
     scrollDirection: YXCollectionView.ScrollDirection = YXCollectionView.ScrollDirection.VERTICAL
@@ -742,17 +626,32 @@ export class YXCollectionView extends Component {
     /**
      * 通过编辑器注册节点类型
      */
-    @property({ type: [_yx_editor_register_cell_info], visible: true, displayName: `Register Cells`, tooltip: `配置此列表内需要用到的 cell 节点类型` })
-    private registerCellForEditor: _yx_editor_register_cell_info[] = []
+    @property({ type: [_yx_editor_register_element_info], visible: true, displayName: `Register Cells`, tooltip: `配置此列表内需要用到的 cell 节点类型` })
+    private registerCellForEditor: _yx_editor_register_element_info[] = []
+    @property({ type: [_yx_editor_register_element_info], visible: true, displayName: `Register Supplementarys`, tooltip: `配置此列表内需要用到的 Supplementary 节点类型` })
+    private registerSupplementaryForEditor: _yx_editor_register_element_info[] = []
 
     /**
      * 注册 cell
-     * 可多次注册不同种类的 cell，只要确保 @identifier 的唯一性就好
-     * @param identifier cell 标识符，通过 @dequeueReusableCell 获取重用 cell 时，会根据这个值匹配
+     * 可多次注册不同种类的 cell，只要确保 identifier 的唯一性就好
+     * @param identifier cell 标识符，通过 dequeueReusableCell 获取重用 cell 时，会根据这个值匹配
      * @param maker 生成节点，当重用池里没有可用的节点时，会通过这个回调获取节点，需要在这个回调里面生成节点
-     * @param poolComp (可选) 节点自定义组件，可以通过这个组件跟 @NodePool 的重用业务关联起来
+     * @param poolComp (可选) 节点自定义组件，可以通过这个组件跟 NodePool 的重用业务关联起来
      */
-    register(identifier: string, maker: () => Node, poolComp: (new (...args: any[]) => YXCollectionViewCell) | string | null = null) {
+    registerCell(identifier: string, maker: () => Node, poolComp: (new (...args: any[]) => YXCollectionViewCell) | string | null = null) {
+        let elementCategory: typeof YXLayoutAttributes.prototype.elementCategory = 'Cell'
+        identifier = elementCategory + identifier
+        let pool = new NodePool(poolComp)
+        this.pools.set(identifier, pool)
+        this.makers.set(identifier, maker)
+    }
+
+    /**
+     * 注册 supplementary 追加视图，用法跟 registerCell 一样  
+     */
+    registerSupplementary(identifier: string, maker: () => Node, poolComp: (new (...args: any[]) => YXCollectionViewCell) | string | null = null) {
+        let elementCategory: typeof YXLayoutAttributes.prototype.elementCategory = 'Supplementary'
+        identifier = elementCategory + identifier
         let pool = new NodePool(poolComp)
         this.pools.set(identifier, pool)
         this.makers.set(identifier, maker)
@@ -771,12 +670,23 @@ export class YXCollectionView extends Component {
     /**
      * 通过标识符从重用池里取出一个可用的 cell 节点
      * @param identifier 注册时候的标识符  
-     * @returns 
      */
     dequeueReusableCell(identifier: string): Node {
+        return this._dequeueReusableElement(identifier, 'Cell')
+    }
+
+    /**
+     * 通过标识符从重用池里取出一个可用的 supplementary 节点
+     * @param identifier 注册时候的标识符  
+     */
+    dequeueReusableSupplementary(identifier: string): Node {
+        return this._dequeueReusableElement(identifier, 'Supplementary')
+    }
+    private _dequeueReusableElement(identifier: string, elementCategory: typeof YXLayoutAttributes.prototype.elementCategory) {
+        identifier = elementCategory + identifier
         let pool = this.pools.get(identifier)
         if (pool == null) {
-            throw new Error(`YXCollectionView: 未注册标识符为 \`${identifier}\` 的 cell，请先调用 YXCollectionView 的 register() 方法注册 cell 节点`);
+            throw new Error(`YXCollectionView: dequeueReusable${elementCategory} 错误，未注册的 identifier`);
         }
         let result: Node = null
 
@@ -789,10 +699,10 @@ export class YXCollectionView extends Component {
         if (result == null) {
             const maker = this.makers.get(identifier)
             result = maker()
-            let cell = result.getComponent(_cell_) || result.addComponent(_cell_)
+            let cell = result.getComponent(_yx_node_element_comp) || result.addComponent(_yx_node_element_comp)
             cell.identifier = identifier
 
-            result.on(NodeEventType.TOUCH_END, this.onTouchItem, this)
+            result.on(NodeEventType.TOUCH_END, this.onTouchElement, this)
         }
         return result
     }
@@ -833,24 +743,56 @@ export class YXCollectionView extends Component {
     cellForItemAt: (indexPath: YXIndexPath, collectionView: YXCollectionView) => Node = null
 
     /**
-     * 当 cell 进入当前可见范围后执行    
+     * 用法跟 cellForItemAt 差不多，此方法内需要通过 dequeueReusableSupplementary 获取 Node 节点  
+     * @param kinds 关于这个字段的具体含义应该根据使用的自定义 layout 决定  
+     */
+    supplementaryForItemAt: (indexPath: YXIndexPath, collectionView: YXCollectionView, kinds: string) => Node = null
+
+    /**
+     * cell 节点可见状态回调  
      * 如果同类型的节点大小可能不一样，可以在这里调整子节点的位置   
      */
-    onCellDisplay: (cell: Node, indexPath: YXIndexPath, collectionView: YXCollectionView) => void = null
+    onCellDisplay: (node: Node, indexPath: YXIndexPath, collectionView: YXCollectionView) => void = null
+    onCellEndDisplay: (node: Node, indexPath: YXIndexPath, collectionView: YXCollectionView) => void = null
 
     /**
-     * 当 cell 移出当前可见范围后执行
+     * supplementary 节点可见状态回调  
      */
-    onCellEndDisplay: (cell: Node, indexPath: YXIndexPath, collectionView: YXCollectionView) => void = null
+    onSupplementaryDisplay: (node: Node, indexPath: YXIndexPath, collectionView: YXCollectionView, kinds: string) => void = null
+    onSupplementaryEndDisplay: (node: Node, indexPath: YXIndexPath, collectionView: YXCollectionView, kinds: string) => void = null
 
     /**
-     * 点击到节点后执行这个方法  
+     * 点击到 cell 节点后执行  
      */
-    onTouchItemAt: (indexPath: YXIndexPath, collectionView: YXCollectionView) => void = null
-    private onTouchItem(ev: EventTouch) {
-        if (this.onTouchItemAt) {
-            let cell = ev.target.getComponent(_cell_)
-            this.onTouchItemAt(cell.attributes.indexPath, this)
+    onTouchCellAt: (indexPath: YXIndexPath, collectionView: YXCollectionView) => void = null
+
+    /**
+     * 点击到 supplementary 节点后执行
+     */
+    onTouchSupplementaryAt: (indexPath: YXIndexPath, collectionView: YXCollectionView, kinds: string) => void = null
+
+    /**
+     * 节点点击事件  
+     */
+    private onTouchElement(ev: EventTouch) {
+        const node = ev.target
+        if (node instanceof Node == false) { return }
+        const cell = node.getComponent(_yx_node_element_comp)
+        if (cell == null) { return }
+        const attr = cell.attributes
+        if (attr == null) { return }
+        if (attr.elementCategory === 'Cell') {
+            if (this.onTouchCellAt) {
+                this.onTouchCellAt(attr.indexPath, this)
+                return
+            }
+            return
+        }
+        if (attr.elementCategory === 'Supplementary') {
+            if (this.onTouchSupplementaryAt) {
+                this.onTouchSupplementaryAt(attr.indexPath, this, attr.supplementaryKinds)
+            }
+            return
         }
     }
 
@@ -872,9 +814,19 @@ export class YXCollectionView extends Component {
     private preloadNodesMap: Map<string, Node> = new Map()
 
     /**
-     * 获取列表当前的可见范围
+     * 获取节点缓存 key  
      */
-    get visibleRect(): math.Rect {
+    private _getLayoutAttributesCacheKey(element: YXLayoutAttributes): string {
+        return this._getVisibleCacheKey(element.indexPath, element.elementCategory, element.supplementaryKinds)
+    }
+    private _getVisibleCacheKey(indexPath: YXIndexPath, elementCategory: typeof YXLayoutAttributes.prototype.elementCategory, kinds: string = '') {
+        return `${indexPath}${elementCategory}${kinds}`
+    }
+
+    /**
+     * 获取列表当前的可见范围  
+     */
+    getVisibleRect(): math.Rect {
         const visibleRect = _scroll_view_visible_rect
         visibleRect.origin = this.scrollView.getScrollOffset()
         visibleRect.x = - visibleRect.x
@@ -883,42 +835,58 @@ export class YXCollectionView extends Component {
     }
 
     /**
-     * 获取当前正在显示的所有节点/组件
+     * 通过索引获取指定的可见的 cell 节点  
      */
-    get visibleNodes(): Node[] {
+    getVisibleCellNode(indexPath: YXIndexPath): Node {
+        const cacheKey = this._getVisibleCacheKey(indexPath, 'Cell')
+        return this.visibleNodesMap.get(cacheKey)
+    }
+
+    /**
+     * 通过索引获取指定的可见的 supplementary 节点  
+     */
+    getVisibleSupplementaryNode(indexPath: YXIndexPath, kinds: string): Node {
+        const cacheKey = this._getVisibleCacheKey(indexPath, 'Supplementary', kinds)
+        return this.visibleNodesMap.get(cacheKey)
+    }
+
+    /**
+     * 获取所有正在显示的 cell 节点  
+     */
+    getVisibleCellNodes(): Node[] {
         let result: Node[] = []
         this.visibleNodesMap.forEach((value) => {
-            result.push(value)
+            const comp = value.getComponent(_yx_node_element_comp)
+            if (comp.attributes.elementCategory === 'Cell') {
+                result.push(value)
+            }
         })
         return result
     }
-    get visibleCells(): YXCollectionView.Cell[] {
-        let result: YXCollectionView.Cell[] = []
+
+    /**
+     * 获取所有正在显示的 supplementary 节点  
+     * @param kinds 可选按种类筛选  
+     */
+    getVisibleSupplementaryNodes(kinds: string = null): Node[] {
+        let result: Node[] = []
         this.visibleNodesMap.forEach((value) => {
-            result.push(value.getComponent(_cell_))
+            const comp = value.getComponent(_yx_node_element_comp)
+            if (comp.attributes.elementCategory === 'Supplementary') {
+                if (kinds === null || comp.attributes.supplementaryKinds === kinds) {
+                    result.push(value)
+                }
+            }
         })
         return result
     }
 
     /**
-     * 获取当前正在显示的某个节点/组件
-     * @param indexPath 
+     * 获取指定节点绑定的布局属性对象  
      */
-    getVisibleNode(indexPath: YXIndexPath): Node | null {
-        return this.visibleNodesMap.get(indexPath.toString())
-    }
-    getVisibleCell(indexPath: YXIndexPath): YXCollectionView.Cell | null {
-        let node = this.getVisibleNode(indexPath)
-        if (node == null) { return null }
-        return node.getComponent(_cell_)
-    }
-
-    /**
-     * 获取指定节点的私有 cell 组件  
-     */
-    getCellComp(node: Node): YXCollectionView.Cell | null {
-        if (node == null) { return null }
-        return node.getComponent(_cell_)
+    getElementAttributes(node: Node): YXLayoutAttributes {
+        const comp = node.getComponent(_yx_node_element_comp)
+        return comp ? comp.attributes : null
     }
 
     /**
@@ -927,11 +895,10 @@ export class YXCollectionView extends Component {
     reloadData() {
         if (this.node.activeInHierarchy && this.node.parent) {
             this._reloadData()
-        } else {
-            this._late_reload_data = true
+            return
         }
+        this._late_reload_data = true
     }
-    private _late_reload_data: boolean = false
     private update_reloadDataIfNeeds(dt: number) {
         if (this._late_reload_data == false) { return }
         this._reloadData()
@@ -946,18 +913,23 @@ export class YXCollectionView extends Component {
         this.scrollView.stopAutoScroll()
 
         // 池子先清一下，可能会累积很多暂时用不到的节点  
-        this.pools.forEach((element) => {
-            element.clear()
-        })
+        this.pools.forEach((element) => { element.clear() })
 
         // 回收模式下，移除掉正在显示的节点并加到池子里 (不需要销毁)
         if (this.mode == _yx_collection_view_list_mode.RECYCLE) {
             this.visibleNodesMap.forEach((value, key) => {
-                const cell = value.getComponent(_cell_)
+                const cell = value.getComponent(_yx_node_element_comp)
                 this.pools.get(cell.identifier).put(value)
                 this.visibleNodesMap.delete(key) // 从可见节点里删除
-                if (this.onCellEndDisplay) {
-                    this.onCellEndDisplay(cell.node, cell.attributes.indexPath, this)
+                if (cell.attributes.elementCategory === 'Cell') {
+                    if (this.onCellEndDisplay) {
+                        this.onCellEndDisplay(cell.node, cell.attributes.indexPath, this)
+                    }
+                }
+                if (cell.attributes.elementCategory === 'Supplementary') {
+                    if (this.onSupplementaryEndDisplay) {
+                        this.onSupplementaryEndDisplay(cell.node, cell.attributes.indexPath, this, cell.attributes.supplementaryKinds)
+                    }
                 }
             })
             this.visibleNodesMap.clear()
@@ -1020,17 +992,12 @@ export class YXCollectionView extends Component {
     /**
      * 根据当前的可见区域调整需要显示的节点
      */
-    private reloadVisibleCells(rect: math.Rect = null) {
-        // 获取当前可见区域
-        if (rect == null) {
-            rect = this.visibleRect
-        }
-
-        // 记录最后一次更新的内容范围  
-        this.lastReloadVisibleCellsInRect = rect.clone()
+    private reloadVisibleElements(visibleRect: math.Rect = null) {
+        this._late_update_visible_data = false
+        if (visibleRect == null) { visibleRect = this.getVisibleRect() }
 
         // 根据可见区域，找出对应的布局属性
-        let layoutAttributes = this.layout.layoutAttributesForElementsInRect(rect, this)
+        let layoutAttributes = this.layout.layoutAttributesForElementsInRect(visibleRect, this)
 
         // 按 zIndex 排序
         let shouldUpdateAttributesZIndex = this.layout.shouldUpdateAttributesZIndex()
@@ -1041,68 +1008,79 @@ export class YXCollectionView extends Component {
             layoutAttributes.sort((a, b) => a.zIndex - b.zIndex)
         }
 
-        /*
-        let poolsCounter = 0
-        this.pools.forEach((a) => {
-            poolsCounter = poolsCounter + a.size()
-        })
-        log(`需要显示的节点数量: ${layoutAttributes.length}  当前显示的节点数量: ${this.scrollView.content.children.length}  缓存池里的节点数量: ${poolsCounter}`)
-        */
+        let shouldUpdateAttributesForBoundsChange = this.layout.shouldUpdateAttributesForBoundsChange()
 
         // 添加需要显示的节点
         for (let index = 0; index < layoutAttributes.length; index++) {
             const element = layoutAttributes[index];
-
-            let cellNode = null
+            if (visibleRect.intersects(element.frame) == false) { continue }
+            const cacheKey = this._getLayoutAttributesCacheKey(element)
+            let elementNode = null
             // 检查是否已经预加载过了
-            if (cellNode == null) {
-                cellNode = this.preloadNodesMap.get(element.indexPath.toString())
+            if (elementNode == null) {
+                elementNode = this.preloadNodesMap.get(cacheKey)
             }
             // 检查节点是否正在显示了
-            if (cellNode == null) {
-                cellNode = this.getVisibleNode(element.indexPath)
+            if (elementNode == null) {
+                elementNode = this.visibleNodesMap.get(cacheKey)
             }
             // 尝试通过注册标识符从节点池获取节点
-            if (cellNode == null) {
-                cellNode = this.cellForItemAt(element.indexPath, this)
+            if (elementNode == null) {
+                if (element.elementCategory === 'Cell') {
+                    elementNode = this.cellForItemAt(element.indexPath, this)
+                }
+                if (element.elementCategory === 'Supplementary') {
+                    elementNode = this.supplementaryForItemAt(element.indexPath, this, element.supplementaryKinds)
+                }
             }
             // 无法正确获取节点，报错
-            if (cellNode == null) {
-                throw new Error("需要实现 cellForItemAt 方法并确保正确的返回了节点");
+            if (elementNode == null) {
+                if (element.elementCategory === 'Cell') {
+                    throw new Error("需要实现 cellForItemAt 方法并确保正确的返回了节点");
+                }
+                if (element.elementCategory === 'Supplementary') {
+                    throw new Error("需要实现 supplementaryForItemAt 方法并确保正确的返回了节点");
+                }
             }
 
             // 恢复节点状态
-            const restoreStatus = this.restoreCellNodeIfNeeds(cellNode)
+            const restoreStatus = this.restoreNodeIfNeeds(elementNode)
 
             // 更新节点变化
-            if (restoreStatus == 1 || this.layout.shouldUpdateAttributesForBoundsChange()) {
-                this.applyLayoutAttributes(cellNode, element)
+            if (restoreStatus == 1 || shouldUpdateAttributesForBoundsChange) {
+                this.applyLayoutAttributes(elementNode, element)
             }
 
             // 调整节点层级
             if (shouldUpdateAttributesZIndex) {
-                cellNode.setSiblingIndex(-1)
+                elementNode.setSiblingIndex(-1)
             }
 
             // 标记此节点正在显示
-            this.visibleNodesMap.set(element.indexPath.toString(), cellNode)
+            this.visibleNodesMap.set(cacheKey, elementNode)
 
-            // 通知 onCellDisplay 
+            // 通知 display 
             if (restoreStatus == 1) {
-                if (this.onCellDisplay) {
-                    this.onCellDisplay(cellNode, element.indexPath, this)
+                if (element.elementCategory === 'Cell') {
+                    if (this.onCellDisplay) {
+                        this.onCellDisplay(elementNode, element.indexPath, this)
+                    }
+                }
+                if (element.elementCategory === 'Supplementary') {
+                    if (this.onSupplementaryDisplay) {
+                        this.onSupplementaryDisplay(elementNode, element.indexPath, this, element.supplementaryKinds)
+                    }
                 }
             }
         }
 
         layoutAttributes = []
     }
-    private lastReloadVisibleCellsInRect: math.Rect = null
 
     /**
      * 节点被回收后需要重新使用时，根据当前回收模式恢复节点的状态，保证节点可见
      */
-    private restoreCellNodeIfNeeds(node: Node) {
+    private restoreNodeIfNeeds(node: Node) {
         // 是否触发了恢复行为，0表示节点已经可见了  1表示触发了恢复行为，节点从不可见变为了可见
         let restoreStatus = 0
 
@@ -1133,18 +1111,14 @@ export class YXCollectionView extends Component {
      * 回收不可见节点
      */
     private recycleInvisibleNodes(visibleRect: math.Rect = null) {
-        if (visibleRect == null) {
-            visibleRect = this.visibleRect
-        }
-
-        // 记录最后一次回收节点时的内容范围  
-        this.lastRecycleInvisibleNodesInRect = visibleRect.clone()
+        this._late_recycle_invisible_node = false
+        if (visibleRect == null) { visibleRect = this.getVisibleRect() }
 
         const _realFrame = _recycleInvisibleNodes_realFrame
         const _contentSize = this.scrollView.content.getComponent(UITransform).contentSize
 
         this.visibleNodesMap.forEach((value, key) => {
-            const cell = value.getComponent(_cell_)
+            const cell = value.getComponent(_yx_node_element_comp)
             /**
              * @version 1.0.2
              * 检查节点是否可见应该是通过变换后的位置来检查
@@ -1158,24 +1132,30 @@ export class YXCollectionView extends Component {
             if (visibleRect.intersects(_realFrame) == false) {
                 if (this.mode == _yx_collection_view_list_mode.PRELOAD) {
                     value.getComponent(UIOpacity).opacity = 0
-                    this.preloadNodesMap.set(cell.attributes.indexPath.toString(), value)
+                    this.preloadNodesMap.set(key, value)
                 } else {
                     this.pools.get(cell.identifier).put(value)
                 }
                 this.visibleNodesMap.delete(key) // 从可见节点里删除
-                if (this.onCellEndDisplay) {
-                    this.onCellEndDisplay(cell.node, cell.attributes.indexPath, this)
+                if (cell.attributes.elementCategory === 'Cell') {
+                    if (this.onCellEndDisplay) {
+                        this.onCellEndDisplay(cell.node, cell.attributes.indexPath, this)
+                    }
+                }
+                if (cell.attributes.elementCategory === 'Supplementary') {
+                    if (this.onSupplementaryEndDisplay) {
+                        this.onSupplementaryEndDisplay(cell.node, cell.attributes.indexPath, this, cell.attributes.supplementaryKinds)
+                    }
                 }
             }
         })
     }
-    private lastRecycleInvisibleNodesInRect: math.Rect = null
 
     /**
      * 调整节点的位置/变换
      */
     private applyLayoutAttributes(node: Node, attributes: YXLayoutAttributes) {
-        let cell = node.getComponent(_cell_)
+        let cell = node.getComponent(_yx_node_element_comp)
         cell.attributes = attributes
 
         let transform = node.getComponent(UITransform) || node.addComponent(UITransform)
@@ -1202,8 +1182,23 @@ export class YXCollectionView extends Component {
     }
 
     /**
-     * 滚动到指定节点的位置
-     * @returns 
+     * 刷新当前可见节点
+     * @param force true: 立即刷新;  false: 根据设置的刷新帧间隔在合适的时候刷新  
+     */
+    markForUpdateVisibleData(force: boolean = false) {
+        if (force) {
+            const visibleRect = this.getVisibleRect()
+            this.reloadVisibleElements(visibleRect)
+            this.recycleInvisibleNodes(visibleRect)
+            return
+        }
+        this._late_update_visible_data = true
+        this._late_recycle_invisible_node = true
+    }
+
+    /**
+     * 滚动到指定节点的位置  
+     * @todo 支持偏移方位，目前固定是按顶部的位置的，有特殊需求的建议直接通过 .scrollView.scrollToOffset() 实现   
      */
     scrollTo(indexPath: YXIndexPath, timeInSecond: number = 0, attenuated: boolean = true) {
         let toOffSet: math.Vec2 = this.layout.scrollTo(indexPath, this)
@@ -1223,7 +1218,11 @@ export class YXCollectionView extends Component {
     protected onLoad(): void {
         for (let index = 0; index < this.registerCellForEditor.length; index++) {
             const element = this.registerCellForEditor[index];
-            this.register(element.identifier, () => instantiate(element.prefab), element.comp)
+            this.registerCell(element.identifier, () => instantiate(element.prefab), element.comp)
+        }
+        for (let index = 0; index < this.registerSupplementaryForEditor.length; index++) {
+            const element = this.registerSupplementaryForEditor[index];
+            this.registerSupplementary(element.identifier, () => instantiate(element.prefab), element.comp)
         }
         this.node.on(ScrollView.EventType.SCROLL_BEGAN, this.onScrollBegan, this)
         this.node.on(ScrollView.EventType.SCROLLING, this.onScrolling, this)
@@ -1272,56 +1271,29 @@ export class YXCollectionView extends Component {
         this.makers = null
 
         if (this.layout) {
-            this.layout.attributes = []
+            this.layout.onDestroy()
         }
     }
 
-    private _frameIdx = 0
+    private _frameIdx = 0 // 帧计数
+    private _late_update_visible_data: boolean = false // 当前帧是否需要更新可见节点  
+    private _late_recycle_invisible_node = false // 当前帧是否需要回收不可见节点  
+    private _late_reload_data: boolean = false // 当前帧是否需要更新列表数据  
     protected update(dt: number): void {
         this._frameIdx++
-        this.update_reloadVisibleCellsIfNeeds(dt)
+        this.update_reloadVisibleNodesIfNeeds(dt)
         this.update_recycleInvisibleNodesIfNeeds(dt)
         this.update_reloadDataIfNeeds(dt)
         this.update_preloadNodeIfNeeds(dt)
     }
 
     /**
-     * 刷新当前可见节点
-     * @param force true: 立即刷新  false: 下帧刷新
-     */
-    private _late_update_visible_data: boolean = false
-    markForUpdateVisibleData(force: boolean = false) {
-        if (force) {
-            const visibleRect = this.visibleRect
-            this.reloadVisibleCells(visibleRect)
-            this.recycleInvisibleNodes(visibleRect)
-            return
-        }
-        this._late_update_visible_data = true
-        this._late_recycle_invisible_node = true
-    }
-
-    /**
      * 更新可见区域节点逻辑
      */
-    private update_reloadVisibleCellsIfNeeds(dt: number) {
-        if (this._late_update_visible_data) {
-            this._late_update_visible_data = false
-            this.reloadVisibleCells()
-            return
-        }
-
-        if (this.layout.shouldUpdateAttributesForBoundsChange()) {
-            return // 当开启了实时更新节点布局属性时，为了保证实时性，去 onScrolling 里面处理    
-        }
-
+    private update_reloadVisibleNodesIfNeeds(dt: number) {
+        if (this._late_update_visible_data == false) { return }
         if ((this.frameInterval <= 1) || (this._frameIdx % this.frameInterval == 0)) {
-            // 检查只有显示区域发生变化了才去更新当前可见节点
-            const visibleRect = this.visibleRect
-            let boundsChange = this.lastReloadVisibleCellsInRect == null || this.lastReloadVisibleCellsInRect.equals(visibleRect) == false
-            if (boundsChange) {
-                this.reloadVisibleCells(visibleRect)
-            }
+            this.reloadVisibleElements()
             return
         }
     }
@@ -1329,21 +1301,10 @@ export class YXCollectionView extends Component {
     /**
      * 回收不可见节点逻辑
      */
-    private _late_recycle_invisible_node = false
     private update_recycleInvisibleNodesIfNeeds(dt: number) {
-        if (this._late_recycle_invisible_node) {
-            this._late_recycle_invisible_node = false
-            this.recycleInvisibleNodes()
-            return
-        }
-
+        if (this._late_recycle_invisible_node == false) { return }
         if ((this.recycleInterval >= 1) && (this._frameIdx % this.recycleInterval == 0)) {
-            // 检查只有显示区域发生变化了才去回收当前可见节点
-            const visibleRect = this.visibleRect
-            let boundsChange = this.lastRecycleInvisibleNodesInRect == null || this.lastRecycleInvisibleNodesInRect.equals(visibleRect) == false
-            if (boundsChange) {
-                this.recycleInvisibleNodes(visibleRect)
-            }
+            this.recycleInvisibleNodes()
             return
         }
     }
@@ -1353,44 +1314,41 @@ export class YXCollectionView extends Component {
      */
     private preloadIdx: number = null
     private update_preloadNodeIfNeeds(dt: number) {
-        if (this.mode !== _yx_collection_view_list_mode.PRELOAD) {
-            return
-        }
-        if (this.preloadIdx == null) {
-            return
-        }
-        if (this.preloadIdx >= this.layout.attributes.length) {
-            return
-        }
-        if (this.preloadNodesLimitPerFrame <= 0) {
-            return
-        }
+        if (this.mode !== _yx_collection_view_list_mode.PRELOAD) { return }
+        if (this.preloadIdx == null) { return }
+        if (this.preloadIdx >= this.layout.attributes.length) { return }
+        if (this.preloadNodesLimitPerFrame <= 0) { return }
 
         let index = 0
         let stop = false
         while (!stop && index < this.preloadNodesLimitPerFrame) {
 
             const attr = this.layout.attributes[this.preloadIdx]
-            const key = attr.indexPath.toString()
+            const cacheKey = this._getLayoutAttributesCacheKey(attr)
             let node: Node = null
             // 检查节点是否正在显示
             if (node == null) {
-                node = this.getVisibleNode(attr.indexPath)
+                node = this.visibleNodesMap.get(cacheKey)
             }
             // 检查节点是否加载过了
             if (node == null) {
-                node = this.preloadNodesMap.get(key)
+                node = this.preloadNodesMap.get(cacheKey)
             }
             // 预加载节点
             if (node == null) {
-                node = this.cellForItemAt(attr.indexPath, this)
-                this.restoreCellNodeIfNeeds(node)
+                if (attr.elementCategory === 'Cell') {
+                    node = this.cellForItemAt(attr.indexPath, this)
+                }
+                if (attr.elementCategory === 'Supplementary') {
+                    node = this.supplementaryForItemAt(attr.indexPath, this, attr.supplementaryKinds)
+                }
+                this.restoreNodeIfNeeds(node)
                 this.applyLayoutAttributes(node, attr)
-                this.visibleNodesMap.set(key, node)
+                this.visibleNodesMap.set(cacheKey, node)
                 this._late_recycle_invisible_node = true
             }
             // 保存节点
-            this.preloadNodesMap.set(key, node)
+            this.preloadNodesMap.set(cacheKey, node)
             // 更新预加载索引
             this.preloadIdx++
             index++
@@ -1407,8 +1365,14 @@ export class YXCollectionView extends Component {
     }
 
     private onScrolling() {
+        // 在滚动过程中仅仅是标记更新状态，具体更新业务统一到 update 里面处理，但是 layout 设置了实时更新的情况时例外  
         if (this.layout.shouldUpdateAttributesForBoundsChange()) {
-            this.reloadVisibleCells()
+            this.reloadVisibleElements()
+        } else {
+            this._late_update_visible_data = true
+        }
+        if (this.recycleInterval > 0) {
+            this._late_recycle_invisible_node = true
         }
     }
 
@@ -1417,43 +1381,8 @@ export class YXCollectionView extends Component {
     }
 
     private onScrollEnded() {
-        this.markForUpdateVisibleData()
         this.recycleInvisibleNodes()
         this.layout.onScrollEnded(this)
-    }
-
-    /**
-     * - - - - - - - - - - - - - - - - - - - - - - - - - - 
-     * - - - - - - - - - - deprecateds - - - - - - - - - -
-     * - - - - - - - - - - - - - - - - - - - - - - - - - - 
-     * 
-     * 所有标记过期的方法都可能在某个版本删除，如果有用到的需要尽快通过替换方案进行修改
-     * 
-     */
-
-    /**
-     * 获取所有正在显示节点的索引
-     * @deprecated 可以考虑通过 visibleCells 实现对应的业务
-     */
-    get visibleIndexPaths(): YXIndexPath[] {
-        let result: YXIndexPath[] = []
-        this.visibleNodesMap.forEach((value) => {
-            let cell = value.getComponent(_cell_)
-            result.push(cell.attributes.indexPath.clone())
-        })
-        return result
-    }
-
-    /**
-     * 获取指定节点的索引  
-     * @deprecated 使用 getCellComp 代替
-     */
-    getVisibleNodeIndexPath(node: Node): _yx_readonly_deep<YXIndexPath> {
-        let comp = this.getCellComp(node)
-        if (comp) {
-            return comp.attributes.indexPath
-        }
-        return null
     }
 }
 
@@ -1463,6 +1392,104 @@ export namespace YXCollectionView {
      */
     export type ScrollDirection = _yx_collection_view_scroll_direction
     export type Mode = _yx_collection_view_list_mode
-    export type Cell = _yx_readonly_deep<_cell_>
 }
 
+/**
+ * *****************************************************************************************  
+ * *****************************************************************************************   
+ * 把二分查找的规则抽出来封装一下，继承这个类的布局，默认通过二分查找实现查找业务  
+ * 这种查找规则对数据量很大的有序列表来说相对高效，具体是否使用还是要根据实际排列需求决定  
+ * *****************************************************************************************  
+ * *****************************************************************************************  
+ * 
+ * @deprecated 1.4.0 版本开始，在自定义布局规则的时候暂时不建议继承这个规则了，如何优化查找算法应该全靠开发者根据实际需求自行实现，目前保留这个是为了 flow-layout 使用，后续有更优方案的话可能会删除这部分代码    
+ */
+export abstract class YXBinaryLayout extends YXLayout {
+
+    /**
+     * @bug 如果节点大小差距很大，可能会导致计算屏幕内节点时不准确，出现节点不被正确添加到滚动视图上的问题  
+     * @fix 可以通过此属性，追加屏幕显示的节点数量  
+     * 设置这个值会在检查是否可见的节点时，尝试检查更多的可能处于屏幕外的节点，具体设置多少要根据实际情况调试，一般如果都是正常大小的节点，不需要考虑这个配置  
+     * 设置负值会检查所有的节点
+     */
+    extraVisibleCount: number = 0
+
+    layoutAttributesForElementsInRect(rect: math.Rect, collectionView: YXCollectionView): YXLayoutAttributes[] {
+        if (this.attributes.length <= 100) { return this.attributes } // 少量数据就不查了，直接返回全部  
+        if (this.extraVisibleCount < 0) { return this.attributes }
+
+        // 二分先查出大概位置
+        let midIdx = -1
+        let left = 0
+        let right = this.attributes.length - 1
+
+        while (left <= right && right >= 0) {
+            let mid = left + (right - left) / 2
+            mid = Math.floor(mid)
+            let attr = this.attributes[mid]
+            if (rect.intersects(attr.frame)) {
+                midIdx = mid
+                break
+            }
+            if (rect.yMax < attr.frame.yMin || rect.xMax < attr.frame.xMin) {
+                right = mid - 1
+            } else {
+                left = mid + 1
+            }
+        }
+        if (midIdx < 0) {
+            return super.layoutAttributesForElementsInRect(rect, collectionView)
+        }
+
+        let result = []
+        result.push(this.attributes[midIdx])
+
+        // 往前检查
+        let startIdx = midIdx
+        while (startIdx > 0) {
+            let idx = startIdx - 1
+            let attr = this.attributes[idx]
+            if (rect.intersects(attr.frame) == false) {
+                break
+            }
+            result.push(attr)
+            startIdx = idx
+        }
+
+        // 追加检查
+        let extra_left = this.extraVisibleCount
+        while (extra_left > 0) {
+            let idx = startIdx - 1
+            if (idx < 0) { break }
+            let attr = this.attributes[idx]
+            if (rect.intersects(attr.frame)) { result.push(attr) }
+            startIdx = idx
+            extra_left--
+        }
+
+        // 往后检查
+        let endIdx = midIdx
+        while (endIdx < this.attributes.length - 1) {
+            let idx = endIdx + 1
+            let attr = this.attributes[idx]
+            if (rect.intersects(attr.frame) == false) {
+                break
+            }
+            result.push(attr)
+            endIdx = idx
+        }
+
+        // 追加检查
+        let extra_right = this.extraVisibleCount
+        while (extra_right > 0) {
+            let idx = endIdx + 1
+            if (idx >= this.attributes.length) { break }
+            let attr = this.attributes[idx]
+            if (rect.intersects(attr.frame)) { result.push(attr) }
+            endIdx = idx
+            extra_right--
+        }
+
+        return result
+    }
+}
