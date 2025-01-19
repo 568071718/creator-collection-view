@@ -299,6 +299,24 @@ class _scroll_view extends ScrollView {
     }
 }
 
+class _yx_node_pool extends NodePool {
+    getAtIdx(indexPath: YXIndexPath, ...args: any[]): Node | null {
+        const nodes: Node[] = this['_pool']
+        for (let index = 0; index < nodes.length; index++) {
+            const obj = nodes[index];
+            let comp = obj.getComponent(_yx_node_element_comp)
+            if (comp && comp.attributes.indexPath.equals(indexPath)) {
+                nodes.splice(index, 1)
+                // @ts-ignore
+                const handler = this.poolHandlerComp ? obj.getComponent(this.poolHandlerComp) : null;
+                if (handler && handler.reuse) { handler.reuse(arguments); }
+                return obj
+            }
+        }
+        return null
+    }
+}
+
 /**
  * 节点的布局属性
  */
@@ -642,7 +660,7 @@ export class YXCollectionView extends Component {
     registerCell(identifier: string, maker: () => Node, poolComp: (new (...args: any[]) => YXCollectionViewCell) | string | null = null) {
         let elementCategory: typeof YXLayoutAttributes.prototype.elementCategory = 'Cell'
         identifier = elementCategory + identifier
-        let pool = new NodePool(poolComp)
+        let pool = new _yx_node_pool(poolComp)
         this.pools.set(identifier, pool)
         this.makers.set(identifier, maker)
     }
@@ -653,7 +671,7 @@ export class YXCollectionView extends Component {
     registerSupplementary(identifier: string, maker: () => Node, poolComp: (new (...args: any[]) => YXCollectionViewCell) | string | null = null) {
         let elementCategory: typeof YXLayoutAttributes.prototype.elementCategory = 'Supplementary'
         identifier = elementCategory + identifier
-        let pool = new NodePool(poolComp)
+        let pool = new _yx_node_pool(poolComp)
         this.pools.set(identifier, pool)
         this.makers.set(identifier, maker)
     }
@@ -671,25 +689,32 @@ export class YXCollectionView extends Component {
     /**
      * 通过标识符从重用池里取出一个可用的 cell 节点
      * @param identifier 注册时候的标识符  
+     * @param indexPath 可选，尝试通过 indexPath 获取刷新之前的节点 (尽可能的保证刷新前和刷新后这个位置仍然是同一个节点)，避免节点复用导致的刷新闪烁问题  
      */
-    dequeueReusableCell(identifier: string): Node {
-        return this._dequeueReusableElement(identifier, 'Cell')
+    dequeueReusableCell(identifier: string, indexPath: YXIndexPath = null): Node {
+        return this._dequeueReusableElement(identifier, 'Cell', indexPath)
     }
 
     /**
      * 通过标识符从重用池里取出一个可用的 supplementary 节点
      * @param identifier 注册时候的标识符  
+     * @param indexPath 可选，尝试通过 indexPath 获取刷新之前的节点 (尽可能的保证刷新前和刷新后这个位置仍然是同一个节点)，避免节点复用导致的刷新闪烁问题  
      */
-    dequeueReusableSupplementary(identifier: string): Node {
-        return this._dequeueReusableElement(identifier, 'Supplementary')
+    dequeueReusableSupplementary(identifier: string, indexPath: YXIndexPath = null): Node {
+        return this._dequeueReusableElement(identifier, 'Supplementary', indexPath)
     }
-    private _dequeueReusableElement(identifier: string, elementCategory: typeof YXLayoutAttributes.prototype.elementCategory) {
+    private _dequeueReusableElement(identifier: string, elementCategory: typeof YXLayoutAttributes.prototype.elementCategory, indexPath: YXIndexPath = null) {
         identifier = elementCategory + identifier
         let pool = this.pools.get(identifier)
         if (pool == null) {
             throw new Error(`YXCollectionView: dequeueReusable${elementCategory} 错误，未注册的 identifier`);
         }
         let result: Node = null
+
+        // 尝试从重用池获取 (牺牲一点性能，尝试通过 indexPath 获取对应的节点，防止刷新闪烁的问题)
+        if (result == null && indexPath && pool instanceof _yx_node_pool) {
+            result = pool.getAtIdx(indexPath)
+        }
 
         // 尝试从重用池获取
         if (result == null) {
