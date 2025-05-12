@@ -296,14 +296,14 @@ class _scroll_view extends ScrollView {
     }
 
     set content(value) {
-        super.content = value;
+        Reflect.set(ScrollView.prototype, 'content', value, this);
         if (value) {
             value.on(NodeEventType.SIZE_CHANGED, this._calculateBoundary, this);
             value.on(NodeEventType.TRANSFORM_CHANGED, this._scaleChanged, this);
         }
     }
     get content() {
-        return super.content;
+        return Reflect.get(ScrollView.prototype, 'content', this);
     }
 }
 
@@ -930,7 +930,6 @@ export class YXCollectionView extends Component {
      */
     reloadData() {
         if (this.node.activeInHierarchy && this.node.parent) {
-            // this.getComponent(Widget).updateAlignment?.();
             this._reloadData()
             return
         }
