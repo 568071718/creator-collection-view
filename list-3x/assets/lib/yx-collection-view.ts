@@ -574,7 +574,7 @@ export class YXCollectionView extends Component {
 
             let transform = content.getComponent(UITransform) || content.addComponent(UITransform)
             transform.contentSize = this.node.getComponent(UITransform).contentSize
-            this.getComponent(Widget).updateAlignment?.();
+            this.getComponent(Widget)?.updateAlignment?.();
             result.content = content
         }
 
