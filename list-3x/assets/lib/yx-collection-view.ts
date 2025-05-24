@@ -1238,6 +1238,37 @@ export class YXCollectionView extends Component {
     }
 
     /**
+     * 滚动到指定索引位置
+     * @param index 要滚动到的位置索引(从0开始)
+     * @param timeInSecond 滚动动画时间(秒)
+     * @param attenuated 是否带有衰减效果
+     */
+    scrollToIndex(index: number, timeInSecond: number = 0, attenuated: boolean = true) {
+        if (index < 0) return;
+
+        let currentIndex = 0;
+        let targetIndexPath: YXIndexPath = null;
+
+        // 遍历所有section找到对应索引的位置
+        for (let section = 0; section < this.getNumberOfSections(); section++) {
+            const itemsInSection = this.getNumberOfItems(section);
+
+            if (currentIndex + itemsInSection > index) {
+                // 找到目标索引所在的section和item
+                const item = index - currentIndex;
+                targetIndexPath = new YXIndexPath(section, item);
+                break;
+            }
+
+            currentIndex += itemsInSection;
+        }
+
+        if (targetIndexPath) {
+            this.scrollTo(targetIndexPath, timeInSecond, attenuated);
+        }
+    }
+
+    /**
      * 生命周期方法
      */
     protected onLoad(): void {
