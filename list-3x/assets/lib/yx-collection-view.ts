@@ -1,4 +1,4 @@
-import { _decorator, Component, Enum, Event, EventMouse, EventTouch, instantiate, Mask, math, Node, NodeEventType, NodePool, Prefab, ScrollView, UIOpacity, UITransform } from 'cc';
+import { _decorator, Component, Enum, Event, EventMouse, EventTouch, instantiate, Mask, math, Node, NodeEventType, NodePool, Prefab, ScrollView, UIOpacity, UITransform, Widget } from 'cc';
 const { ccclass, property, executionOrder, disallowMultiple, help } = _decorator;
 
 const _vec3Out = new math.Vec3()
@@ -294,6 +294,17 @@ class _scroll_view extends ScrollView {
         }
         return result
     }
+
+    set content(value) {
+        Reflect.set(ScrollView.prototype, 'content', value, this);
+        if (value) {
+            value.on(NodeEventType.SIZE_CHANGED, this._calculateBoundary, this);
+            value.on(NodeEventType.TRANSFORM_CHANGED, this._scaleChanged, this);
+        }
+    }
+    get content() {
+        return Reflect.get(ScrollView.prototype, 'content', this);
+    }
 }
 
 class _yx_node_pool extends NodePool {
@@ -563,7 +574,7 @@ export class YXCollectionView extends Component {
 
             let transform = content.getComponent(UITransform) || content.addComponent(UITransform)
             transform.contentSize = this.node.getComponent(UITransform).contentSize
-
+            this.getComponent(Widget)?.updateAlignment?.();
             result.content = content
         }
 
