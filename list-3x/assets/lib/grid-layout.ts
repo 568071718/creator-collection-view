@@ -130,7 +130,7 @@ export class GridLayout extends YXLayout {
         let num = this.getMaxItemsPerRow(collectionView)
 
         // 计算索引区间
-        const startIdx = startRow * num
+        const startIdx = Math.max(startRow * num, 0) // 防止<0：当列表置顶往下滑时（rect.y < 0）得出startIdx为负数，导致slice截取为空（表现是回弹过程列表元素截断）
         const endIdx = endRow * num
 
         // 只返回区间节点的布局属性
