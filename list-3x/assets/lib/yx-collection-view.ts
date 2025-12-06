@@ -115,7 +115,7 @@ class _yx_node_element_comp extends Component {
 /**
  * 私有组件
  * 内部滚动视图组件
- * https://github.com/cocos/cocos-engine/blob/v3.8.0/cocos/ui/scroll-view.ts
+ * https://github.com/cocos/cocos-engine/blob/v3.8.8/cocos/ui/scroll-view.ts
  */
 class _scroll_view extends ScrollView {
 
@@ -236,6 +236,15 @@ class _scroll_view extends ScrollView {
             return
         }
         super._stopPropagationIfTargetIsMe(event)
+    }
+
+    ignoreScrollEndedDuringAutoScroll = false
+    protected _dispatchEvent(event: string): void {
+        // 这里非常奇怪，在快速滑动的时候收到了 `SCROLL_ENDED` 但是 `isAutoScrolling` 还是 true，感觉不太符合常理，看源码似乎是设计如此，不清楚是何用意  
+        if (this.ignoreScrollEndedDuringAutoScroll && event === ScrollView.EventType.SCROLL_ENDED as string && this.isAutoScrolling()) {
+            return
+        }
+        super._dispatchEvent(event)
     }
 
     /**
@@ -640,6 +649,18 @@ export class YXCollectionView extends Component {
      */
     @property({ tooltip: `滚动过程中，每多少帧回收一次不可见节点，1表示每帧都回收，0表示不在滚动过程中回收不可见节点` })
     recycleInterval: number = 1
+
+    /**
+     * bug?? 还是特性?? 当列表快速滑动的时候会收到 `scroll-ended` 事件，但实际上快速滑动阶段只是手指频繁的松开按下，不应该定性为滚动结束  
+     * 将这个属性设置为 `true` 后不会在快速滑动时发送 `scroll-ended` 事件  
+     * 该属性为实验性的功能，暂时不清楚是否有其他隐患，如果碰到快速滑动行为引发一些奇怪问题时可以尝试修改此属性  
+     */
+    set ignoreScrollEndedDuringAutoScroll(value: boolean) {
+        this._scrollView.ignoreScrollEndedDuringAutoScroll = value
+    }
+    get ignoreScrollEndedDuringAutoScroll(): boolean {
+        return this._scrollView.ignoreScrollEndedDuringAutoScroll
+    }
 
     /**
      * 通过编辑器注册节点类型
