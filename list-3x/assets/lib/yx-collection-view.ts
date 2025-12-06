@@ -918,7 +918,7 @@ export class YXCollectionView extends Component {
      * 刷新列表数据
      */
     reloadData() {
-        if (this.node.activeInHierarchy && this.node.parent) {
+        if (this.node != null && this.node.activeInHierarchy && this.node.parent && this.layout != null) {
             this._reloadData()
             return
         }
