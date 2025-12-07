@@ -1,7 +1,7 @@
 [
   {
     "__type__": "cc.SceneAsset",
-    "_name": "home",
+    "_name": "grid",
     "_objFlags": 0,
     "__editorExtras__": {},
     "_native": "",
@@ -11,7 +11,7 @@
   },
   {
     "__type__": "cc.Scene",
-    "_name": "home",
+    "_name": "grid",
     "_objFlags": 0,
     "__editorExtras__": {},
     "_parent": null,
@@ -56,7 +56,7 @@
     "_globals": {
       "__id__": 14
     },
-    "_id": "5d2f3c26-c7d2-48bd-bd13-ca5aa20a93c4"
+    "_id": "85f5e60f-5f3d-42a9-871d-7e695a424d93"
   },
   {
     "__type__": "cc.Node",
@@ -298,6 +298,7 @@
     "preloadNodesLimitPerFrame": 2,
     "frameInterval": 1,
     "recycleInterval": 1,
+    "autoReloadOnSizeChange": false,
     "registerCellForEditor": [
       {
         "__id__": 8
@@ -384,7 +385,7 @@
     "_id": "c5V1EV8IpMtrIvY1OE9t2u"
   },
   {
-    "__type__": "f5a88umqwxKvohw3IWqZkJR",
+    "__type__": "602edmasWxHMY+0WrUVIhcv",
     "_name": "",
     "_objFlags": 0,
     "__editorExtras__": {},
@@ -393,7 +394,7 @@
     },
     "_enabled": true,
     "__prefab": null,
-    "_id": "acPDbfi09KmLOkYo+Irf3Y"
+    "_id": "597Xe6AAxAUKkZXOTkRnHK"
   },
   {
     "__type__": "cc.PrefabInfo",

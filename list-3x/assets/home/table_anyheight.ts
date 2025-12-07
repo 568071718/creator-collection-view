@@ -1,11 +1,10 @@
-import { _decorator, Component, Label, math, Node, Sprite } from 'cc';
+import { _decorator, Component, Label, Node } from 'cc';
 import { YXCollectionView } from '../lib/yx-collection-view';
 import { YXTableLayout } from '../lib/yx-table-layout';
 const { ccclass, property } = _decorator;
 
-
-@ccclass('home')
-export class home extends Component {
+@ccclass('table_anyheight')
+export class table_anyheight extends Component {
     protected start(): void {
         const listComp = this.node.getChildByName('list').getComponent(YXCollectionView)
 
@@ -19,11 +18,15 @@ export class home extends Component {
         }
 
         let layout = new YXTableLayout()
-        layout.spacing = 20
-        layout.rowHeight = 100
+        layout.spacing = 10
+        layout.rowHeight = (indexPath) => {
+            // 可以根据 `indexPath` 返回实际数据对应的 UI 高度
+            return (indexPath.row % 2 == 0) ? 120 : 200
+        }
         listComp.layout = layout
 
         listComp.reloadData()
     }
 }
+
 

@@ -645,6 +645,7 @@ export class YXCollectionView extends Component {
     /**
      * 滚动过程中，每多少帧回收一次不可见节点，1表示每帧都回收，0表示不在滚动过程中回收不可见节点
      * @bug 滚动过程中如果实时的回收不可见节点，有时候会收不到 scroll view 的 cancel 事件，导致 scroll view 的滚动状态不会更新 (且收不到滚动结束事件)
+     * @bug 列表滚动时卡住不会正常回弹  
      * @fix 当这个属性设置为 0 时，只会在 `touch-up` 和 `scroll-ended` 里面回收不可见节点  
      */
     @property({ tooltip: `滚动过程中，每多少帧回收一次不可见节点，1表示每帧都回收，0表示不在滚动过程中回收不可见节点` })
@@ -755,6 +756,10 @@ export class YXCollectionView extends Component {
             let cell = result.getComponent(_yx_node_element_comp) || result.addComponent(_yx_node_element_comp)
             cell.identifier = identifier
 
+            /**
+             * @todo 滑动很快的时候似乎偶尔会触发 `Error occurs in an event listener: touch-start`  
+             * 复现条件: 列表嵌套 && 快速滑动 && 刷新列表，像是刷新后把 cell node 给回收了导致的  
+             */
             result.on(NodeEventType.TOUCH_END, this.onTouchElement, this)
         }
         return result

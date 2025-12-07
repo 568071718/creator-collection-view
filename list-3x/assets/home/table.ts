@@ -1,11 +1,10 @@
-import { _decorator, Component, Label, math, Node, Sprite } from 'cc';
+import { _decorator, Component, Label, Node } from 'cc';
 import { YXCollectionView } from '../lib/yx-collection-view';
 import { YXTableLayout } from '../lib/yx-table-layout';
 const { ccclass, property } = _decorator;
 
-
-@ccclass('home')
-export class home extends Component {
+@ccclass('table')
+export class table extends Component {
     protected start(): void {
         const listComp = this.node.getChildByName('list').getComponent(YXCollectionView)
 
@@ -19,11 +18,12 @@ export class home extends Component {
         }
 
         let layout = new YXTableLayout()
-        layout.spacing = 20
-        layout.rowHeight = 100
+        layout.spacing = 10
+        layout.rowHeight = 120
         listComp.layout = layout
 
         listComp.reloadData()
     }
 }
+
 

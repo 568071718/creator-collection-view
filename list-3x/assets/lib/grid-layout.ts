@@ -1,8 +1,10 @@
 import { math, UITransform, warn } from "cc";
 import { YXCollectionView, YXIndexPath, YXLayout, YXLayoutAttributes } from "./yx-collection-view";
 
+/**
+ * 网格布局
+ */
 export class GridLayout extends YXLayout {
-
     /**
      * 节点大小  
      */
@@ -19,10 +21,23 @@ export class GridLayout extends YXLayout {
     verticalSpacing: number = 0
 
     /**
+     * @deprecated contentAlignment
+     */
+    set alignment(value: number) {
+        this.contentAlignment = value
+    }
+
+    /**
      * 整体对齐方式  
      * 0靠左 1居中 2靠右  
      */
-    alignment: number = 1
+    contentAlignment: number = 1
+
+    /**
+     * 最后一行元素的对齐方式  
+     * 0靠左 1居中 2靠右  (默认 null，靠左)  
+     */
+    lastRowAlignment?: number = null
 
     /**
      * 获取每行最多可以容纳多少个节点  
@@ -64,15 +79,14 @@ export class GridLayout extends YXLayout {
         // 计算每行最多可以放多少个节点
         this._maxItemsPerRow = null
         let num = this.getMaxItemsPerRow(collectionView)
+        let maxWidth = (num * this.itemSize.width + (num - 1) * this.horizontalSpacing) // 每行节点需要占用的总宽度
 
         // 根据设置的对齐方式计算左边距
         let left = 0
-        if (this.alignment == 1) {
-            let maxWidth = (num * this.itemSize.width + (num - 1) * this.horizontalSpacing) // 每行节点总宽度
+        if (this.contentAlignment == 1) {
             left = (width - maxWidth) * 0.5
         }
-        if (this.alignment == 2) {
-            let maxWidth = (num * this.itemSize.width + (num - 1) * this.horizontalSpacing) // 每行节点总宽度
+        if (this.contentAlignment == 2) {
             left = width - maxWidth
         }
 
@@ -80,6 +94,10 @@ export class GridLayout extends YXLayout {
         if (numberOfSections > 1) { warn(`GridLayout 暂时不支持分区模式`) }
 
         const numberOfItems = collectionView.getNumberOfItems(0)
+        // 计算元素一共有多少行
+        let total = Math.ceil(numberOfItems / num)
+        // 临时记录最后一行的元素  
+        let lastAttrs: YXLayoutAttributes[] = []
         for (let index = 0; index < numberOfItems; index++) {
 
             // 计算这个节点是第几行
@@ -101,6 +119,26 @@ export class GridLayout extends YXLayout {
 
             // 更新内容高度
             contentSize.height = Math.max(contentSize.height, attr.frame.yMax)
+
+            if (row == total - 1) {
+                lastAttrs.push(attr)
+            }
+        }
+
+        // 单独调整最后一行元素的对齐方式
+        if (this.lastRowAlignment != null) {
+            let tempLeft = left
+            if (this.lastRowAlignment == 1) {
+                tempLeft = left + (maxWidth - this.itemSize.width * lastAttrs.length - this.horizontalSpacing * (lastAttrs.length - 1)) * 0.5
+            }
+            if (this.lastRowAlignment == 2) {
+                tempLeft = left + (maxWidth - this.itemSize.width * lastAttrs.length - this.horizontalSpacing * (lastAttrs.length - 1))
+            }
+            for (let index = 0; index < lastAttrs.length; index++) {
+                const attr = lastAttrs[index]
+                attr.frame.x = tempLeft
+                tempLeft = attr.frame.xMax + this.horizontalSpacing
+            }
         }
 
         this.attributes = attrs
@@ -137,4 +175,3 @@ export class GridLayout extends YXLayout {
         return this.attributes.slice(startIdx, endIdx)
     }
 }
-

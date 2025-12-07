@@ -6,6 +6,10 @@ enum _yx_table_layout_supplementary_kinds {
     FOOTER = 'footer',
 }
 
+/**
+ * TableView 布局  
+ * 这个布局实现了 YXCollectionView 约定的大部分的概念，有想深入了解自定义布局的可以拿这套布局当作参考   
+ */
 export class YXTableLayout extends YXLayout {
 
     /**
@@ -181,7 +185,7 @@ export class YXTableLayout extends YXLayout {
         }
 
         // 重要: 设置内容区域总大小，只有确定了滚动区域的大小列表才能滚动  
-        this.contentSize = new math.Size(contentWidth, contentHeight)
+        this.contentSize = new math.Size(contentWidth, Math.max(contentHeight, collectionView.scrollView.view.height))
     }
 
     initOffset(collectionView: YXCollectionView): void {
