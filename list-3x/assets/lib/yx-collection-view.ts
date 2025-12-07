@@ -663,6 +663,13 @@ export class YXCollectionView extends Component {
     }
 
     /**
+     * 列表内的元素位置是在 `reloadData` 那一刻决定的，所以当列表有 Widget 组件或者其他一些情况导致列表节点自身大小改变了但子元素的位置未更新   
+     * 打开这个属性会在列表节点自身大小变化时自动重新计算一遍布局信息  
+     */
+    @property({ tooltip: `如果列表有 Widget 组件或者希望列表大小改变时自动刷新列表，可以打开此开关` })
+    autoReloadOnSizeChange: boolean = false
+
+    /**
      * 通过编辑器注册节点类型
      */
     @property({ type: [_yx_editor_register_element_info], visible: true, displayName: `Register Cells`, tooltip: `配置此列表内需要用到的 cell 节点类型` })
@@ -1274,6 +1281,7 @@ export class YXCollectionView extends Component {
         this.node.on(ScrollView.EventType.SCROLLING, this.onScrolling, this)
         this.node.on(ScrollView.EventType.TOUCH_UP, this.onScrollTouchUp, this)
         this.node.on(ScrollView.EventType.SCROLL_ENDED, this.onScrollEnded, this)
+        this.node.on(NodeEventType.SIZE_CHANGED, this.onSizeChange, this)
         this._scrollView._yx_startAttenuatingAutoScrollTargetOffset = (touchMoveVelocity, startOffset, originTargetOffset, originScrollTime) => {
             return this.layout.targetOffset(this, touchMoveVelocity, startOffset, originTargetOffset, originScrollTime)
         }
@@ -1284,6 +1292,7 @@ export class YXCollectionView extends Component {
         this.node.off(ScrollView.EventType.SCROLLING, this.onScrolling, this)
         this.node.off(ScrollView.EventType.TOUCH_UP, this.onScrollTouchUp, this)
         this.node.off(ScrollView.EventType.SCROLL_ENDED, this.onScrollEnded, this)
+        this.node.off(NodeEventType.SIZE_CHANGED, this.onSizeChange, this)
         this._scrollView._yx_startAttenuatingAutoScrollTargetOffset = null
 
         // 销毁当前所有正在显示的节点
@@ -1429,6 +1438,12 @@ export class YXCollectionView extends Component {
     private onScrollEnded() {
         this.recycleInvisibleNodes()
         this.layout.onScrollEnded(this)
+    }
+
+    private onSizeChange() {
+        if (this.autoReloadOnSizeChange) {
+            this.reloadData()
+        }
     }
 }
 
