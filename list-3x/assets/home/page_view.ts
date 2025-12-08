@@ -8,6 +8,7 @@ export class page_view extends Component {
     protected start(): void {
         const listComp = this.node.getChildByName('list').getComponent(YXCollectionView)
 
+        listComp.recycleInterval = 0
         listComp.ignoreScrollEndedDuringAutoScroll = true
         listComp.numberOfItems = () => {
             return 3

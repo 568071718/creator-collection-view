@@ -298,6 +298,7 @@
     "preloadNodesLimitPerFrame": 2,
     "frameInterval": 1,
     "recycleInterval": 1,
+    "autoReloadOnSizeChange": false,
     "registerCellForEditor": [
       {
         "__id__": 8

@@ -17,10 +17,12 @@ export class PageLayout extends YXLayout {
 
     /**
      * 循环滚动，默认关闭  
+     * 注意: 当开启循环滚动时，YXCollectionView 需要额外设置 `recycleInterval = 0`  
      * 注意: 当开启循环滚动时，YXCollectionView 需要额外设置 `ignoreScrollEndedDuringAutoScroll = true`  
      * 注意: 开启循环滚动会生成较大范围的 `indexPath`，在使用索引的时候需要进行取余处理   
      * 
      * @example  
+     * listComp.recycleInterval = 0
      * listComp.ignoreScrollEndedDuringAutoScroll = true  
      * listComp.numberOfItems = () => {
      *      return <data-length>
@@ -61,6 +63,9 @@ export class PageLayout extends YXLayout {
         let numberOfItems = collectionView.getNumberOfItems(0)
         if (this.loop) {
             numberOfItems = numberOfItems * 3 * this.safeScrollRangeMultiplier
+            if (collectionView.recycleInterval != 0) {
+                warn(`PageLayout: 开启循环滚动时建议将 YXCollectionView.recycleInterval 设置为 0`)
+            }
             if (collectionView.ignoreScrollEndedDuringAutoScroll == false) {
                 warn(`PageLayout: 开启循环滚动时建议将 YXCollectionView.ignoreScrollEndedDuringAutoScroll 设置为 true`)
             }

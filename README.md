@@ -1,108 +1,141 @@
-![title.png](./doc/imgs/title.png)
 
----   
+<img src="./doc/imgs/title.png" width="400">  
 
-## 开发环境
-* 2.x  
-    引擎版本：Cocos Creator **2.4.13**  
-    编程语言：TypeScript
-* 3.x  
-    引擎版本：Cocos Creator **3.8.0**  
-    编程语言：TypeScript  
+![platform](https://img.shields.io/badge/creator-2.4.13-blue?logo=cocos)
+![platform](https://img.shields.io/badge/creator-3.8+-blue?logo=cocos)
 
-## 基本特性  
+参考苹果 UIKit 的 UICollectionView 实现的供 Cocos Creator 使用的列表组件  
 
-* 节点回收复用(虚拟列表模式)  
-* 分帧预加载节点(非虚拟列表模式)  
-* 多种 cell 节点类型  
-* 列表嵌套  
-* 分区概念  
-* supplementary 补充视图概念  
-* 多种 supplementary 节点类型  
-* [布局解耦(组件核心)](./doc/md/layout.md)  
+## 演示场景    
 
-## table-layout  
+点击图片标题可跳转对应的实现场景  
 
-* 仿 TableView 样式，仅支持垂直方向排列  
-* 支持设置不同的行高  
-* 支持分区模式  
-* 支持添加区头/区尾  
-* 支持区头/区尾悬浮吸附效果  
-* [在线演示](https://568071718.github.io/cocos-creator-build/collection-view/table-layout/)  
+| [基本列表](list-3x/assets/home/table.ts) | [基本列表 (非固定高度)](list-3x/assets/home/table_anyheight.ts) | [网格布局](list-3x/assets/home/grid.ts) |
+| - | - | - |
+| <img src="./doc/imgs/jc.gif" width="220"> | <img src="./doc/imgs/jch.gif" width="220"> | <img src="./doc/imgs/jcg.gif" width="220"> |  
+
+| [PageView](list-3x/assets/home/page_view.ts) | [PageView 嵌套](list-3x/assets/home/table_in_page.ts) | [展开子列表](list-3x/assets/home/table_sublist.ts) |
+| - | - | - |
+| <img src="./doc/imgs/jcp.gif" width="220"> | <img src="./doc/imgs/jjp.gif" width="220"> | <img src="./doc/imgs/jtz.gif" width="220"> |  
+
+点击图片标题可跳转对应的实现场景  
+
+## ScrollView  
+
+YXCollectionView 是基于 ScrollView 组件实现的，一些常规的滚动视图相关的配置可以直接通过 ScrollView 的属性/方法来修改  
+
+```ts
+// 回弹开关
+listComp.scrollView.inertia = true 
+// 边界开关
+listComp.scrollView.elastic = true 
+// 减速系数  
+listComp.scrollView.brake = 0.8 
+// 获取滚动状态  
+let isScrolling = listComp.scrollView.isScrolling()
+// 滚动  
+listComp.scrollView.scrollToTop(0.5) 
+
+// 更多 ScrollView 开放的方法 ...
+
+```
+
+还可以监听 ScrollView 定义的事件类型  
+
+```ts  
+// 以下两种写法一样，两个组件是同级的，获取到的是同一个 Node  
+listComp.node.on(ScrollView.EventType.SCROLLING, <your func>, this)
+listComp.scrollView.node.on(ScrollView.EventType.SCROLLING, <your func>, this)
+```
+
+基于 ScrollView 可以很方便的获取滚动视图的各种状态以及回调事件  
 
 ## 使用  
 
+### 注册 cell 模板  
+
+通过 `registerCell` 方法注册你的 cell 模板。为了支持多模板，这个方法约定了需要传一个标识符用来做区分  
+
+举个栗子，如果你的列表内可能会显示多种不同类型的 cell，你需要创建多个 Prefab 模板，然后多次调用 `registerCell` 方法并传入不同的标识符   
+
 ```ts
-listComp.numberOfItems = () => 10000
+listComp.registerCell(`cell1`, () => { return instantiate(<your-prefab-1>) })
+listComp.registerCell(`cell2`, () => { return instantiate(<your-prefab-2>) })
+listComp.registerCell(`cell3`, () => { return instantiate(<your-prefab-3>) })
+...  
+```
+
+> 通过代码注册模板时接收的是 Node 对象，并非必须要求预制体 (Prefab)  
+
+除了代码注册，也可以在编辑器里直接关联模板，注意这里的标识符也是不能重复  
+
+<img src="./doc/imgs/erc.png" width="320">
+
+### 关联数据源  
+
+**关联数据必须至少实现两个方法**  
+
+一个是实现 `numberOfItems` 确定一共有多少条数据  
+
+```ts  
+listComp.numberOfItems = (section) => {
+    return 10000 // 一般来说这里可能会是 <yourArray>.length  
+}
+```
+
+另一个是实现 `cellForItemAt` 确定要用哪个 cell 模板以及更新模板数据，这里需要通过 `dequeueReusableCell` 方法传入你注册阶段自定义的标识符来获取对应的 Node 实例对象，通过 `indexPath` 来获取当前项对应的数据  
+
+```ts  
 listComp.cellForItemAt = (indexPath, collectionView) => {
+    let data = <yourArray>[indexPath.row]
     const cell = collectionView.dequeueReusableCell(`cell`)
     cell.getChildByName('label').getComponent(Label).string = `${indexPath}`
     return cell
 }
+```
 
+### 确定布局排列方案  
+
+组件本身不负责布局业务，还需要通过指定一个 `YXLayout` 子类布局对象来确定当前列表的布局方案  
+
+以 TableView 布局为例，创建一个 YXTableLayout 对象并赋值给 `YXCollectionView.layout` 属性 
+
+```ts  
 let layout = new YXTableLayout()
-layout.spacing = 20
-layout.rowHeight = 100
+layout.spacing = 10
+layout.rowHeight = 120
 listComp.layout = layout
+```
 
+再以网格布局为例，只需要将 YXTableLayout 替换为 GridLayout 即可  
+
+```ts  
+let layout = new GridLayout()
+layout.horizontalSpacing = 20
+layout.verticalSpacing = 20
+layout.itemSize = new math.Size(150, 180)
+listComp.layout = layout
+```
+
+### 刷新  
+
+当以上配置都设置好后，在任何需要刷新的时候执行 `reloadData`  
+
+```ts  
 listComp.reloadData()
 ```
 
-## 更多接口  
+## 一些说明  
 
-* 内部 ScrollView 组件  
-```ts
-let isScrolling = this.listComp.scrollView.isScrolling()
-let isAutoScrolling = this.listComp.scrollView.isAutoScrolling()
-this.listComp.scrollView.brake = 0.8
-this.listComp.scrollView.bounceDuration = 0.25
-this.listComp.scrollView.scrollToOffset(new math.Vec2(0, 200))
-// ... 可以直接使用更多 ScrollView 属性或者方法  
-```
-
-* 开启分区  
-```ts
-// 注意: 分区需要自定义 YXLayout 支持  
-this.listComp.numberOfSections = () => 2 // 设置列表分 2 个区排列
-this.listComp.numberOfItems = (section, collectionView) => {
-    if (section == 0) {
-        return 10 // 第 1 个区返回 10 条数据
-    }
-    if (section == 1) {
-        return 20 // 第 2 个区返回 20 条数据
-    }
-    return 0 // 默认情况  
-}
-```
-
-* 节点显示状态回调  
-```ts
-this.listComp.onCellDisplay = (cell, indexPath, collectionView) => {
-    log(`onCellDisplay: ${indexPath}`)
-}
-this.listComp.onCellEndDisplay = (cell, indexPath, collectionView) => {
-    log(`onCellEndDisplay: ${indexPath}`)
-}
-```
-
-* 滚动至指定位置  
-```ts
-let indexPath = new YXIndexPath(0, 2) // 要滚动到的节点索引
-this.listComp.scrollTo(indexPath)
-```
-
-* 预加载相关接口  
-```ts
-this.listComp.preloadNodesLimitPerFrame = 2 // 每帧加载多少个节点
-this.listComp.preloadProgress = (current, total) => {
-    log(`加载进度: ${current}/${total}`)
-}
-```
+* 如果你了解 UICollectionView，需要注意两者表现并非是完全一致的 (有所欠缺)  
+* 使用的话无需集成所有文件，可以把布局文件看作是插件，集成时候只需要 [核心组件文件](list-3x/assets/lib/yx-collection-view.ts) + 需要的布局文件即可  
+* 目前在任何情况下 cell 节点的锚点都应该是 (0.5, 0.5)，如果发现 cell 位置不对可以检查一下锚点设置   
+* cell 根节点不应该有调整自身大小的能力 - 例如不能挂载 `Widget` 组件，或者是 `CONTAINER` 模式的 `Layout` 组件  
+* 监听不到 `scroll-ended` 事件，滚动时卡住(无惯性滚动，无回弹) - 将 `recycleInterval` 设置为 0  
+* 异步加载图片显示错乱 - 这个问题需要自身业务层解决，因为虚拟列表节点存在复用情况，异步加载回调时机不确定  
+* 列表有 Widget 组件或者列表自身节点大小改变时布局错乱 - 将 `autoReloadOnSizeChange` 设置为 true  
+* 列表刷新时部分 cell 会闪烁 - 在调用 `dequeueReusableCell` 方法匹配节点时额外传一个 `indexPath` 参数  
 
 ## 相关链接  
-* [Github](https://github.com/568071718/creator-collection-view)    
-* [Gitee](https://gitee.com/568071718/creator-collection-view)  
-* [查看声明文件](./doc/declarations/yx-collection-view.d.ts)  
-* [旧版文档](https://gitee.com/568071718/creator-collection-view-doc)  
 
-
+* [Gitee 镜像](https://gitee.com/568071718/creator-collection-view)  

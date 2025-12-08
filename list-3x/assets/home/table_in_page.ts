@@ -8,6 +8,7 @@ export class table_in_page extends Component {
     protected start(): void {
         const listComp = this.node.getChildByName('list').getComponent(YXCollectionView)
 
+        listComp.recycleInterval = 0
         listComp.ignoreScrollEndedDuringAutoScroll = true
         listComp.numberOfItems = () => {
             return 5
